@@ -1,5 +1,6 @@
 import { healthController } from "./controllers/health.controller";
 import { isHealthRoute } from "./routes/health.routes";
+import { errorResponse } from "./http-error";
 
 // Somente os arquivos públicos registrados nesta lista podem ser servidos.
 const staticFiles = new Map([
@@ -10,15 +11,25 @@ const staticFiles = new Map([
 ]);
 
 export async function handleRequest(request: Request): Promise<Response> {
+  try {
+    return await routeRequest(request);
+  } catch {
+    return errorResponse(request, 500, "Erro interno do servidor");
+  }
+}
+
+async function routeRequest(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   if (request.method !== "GET" && request.method !== "HEAD") {
-    return new Response("Método não permitido", {
-      status: 405, headers: { Allow: "GET, HEAD" },
-    });
+    return errorResponse(request, 405, "Método não permitido", { Allow: "GET, HEAD" });
   }
 
   if (isHealthRoute(pathname)) {
     return healthController(request);
+  }
+
+  if (pathname === "/api" || pathname.startsWith("/api/")) {
+    return errorResponse(request, 404, "Não encontrado");
   }
 
   const fileUrl = staticFiles.get(pathname);
