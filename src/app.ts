@@ -1,3 +1,6 @@
+import { healthController } from "./controllers/health.controller";
+import { isHealthRoute } from "./routes/health.routes";
+
 // Somente os arquivos públicos registrados nesta lista podem ser servidos.
 const staticFiles = new Map([
   ["/", new URL("../public/index.html", import.meta.url)],
@@ -14,11 +17,8 @@ export async function handleRequest(request: Request): Promise<Response> {
     });
   }
 
-  if (pathname === "/api/health") {
-    const response = Response.json({ status: "ok", message: "Servidor funcionando" });
-    response.headers.set("Cache-Control", "no-store");
-    return request.method === "HEAD"
-      ? new Response(null, { headers: response.headers }) : response;
+  if (isHealthRoute(pathname)) {
+    return healthController(request);
   }
 
   const fileUrl = staticFiles.get(pathname);
