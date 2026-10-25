@@ -24,3 +24,11 @@ main {
 h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.2; }
 .status { margin-top: 2rem; padding: 1rem; background: #f3edf0; border-radius: .5rem; }
 a { color: #785064; }
+form { display: grid; gap: .65rem; max-width: 28rem; }
+input, button { font: inherit; padding: .75rem 1rem; border-radius: .5rem; }
+input { width: 100%; box-sizing: border-box; border: 1px solid #a99aa4; }
+button { border: 0; color: white; background: #785064; cursor: pointer; margin-top: .5rem; }
+button:disabled { opacity: .6; cursor: wait; }
+input:focus-visible, button:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
+#login-message { color: #76334b; min-height: 1.5em; }
+[hidden] { display: none !important; }

@@ -11,7 +11,24 @@
     <main>
       <p class="eyebrow">Projeto de extensão universitária</p>
       <h1>Mara Guerra Estética Avançada — Sistema de Gestão</h1>
-      <p>Uma base para o futuro sistema de gestão da clínica.</p>
+      <section id="login-area" aria-labelledby="login-title">
+        <h2 id="login-title">Entre na sua conta</h2>
+        <p>Use o acesso individual fornecido pela clínica.</p>
+        <form id="login-form" method="post" action="/api/auth/login">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="username" maxlength="254" required />
+          <label for="senha">Senha</label>
+          <input id="senha" name="senha" type="password" autocomplete="current-password" maxlength="128" required />
+          <button type="submit" id="entrar">Entrar</button>
+        </form>
+      </section>
+      <section id="home-area" hidden aria-labelledby="home-title">
+        <h2 id="home-title">Bem-vindo(a), <span id="user-name"></span></h2>
+        <p>Perfil: <strong id="user-role"></strong></p>
+        <p>Você está conectado ao sistema da clínica.</p>
+        <button type="button" id="sair">Sair</button>
+      </section>
+      <p id="login-message" role="status" aria-live="polite"></p>
       <p class="status" id="server-status" role="status">Verificando o servidor…</p>
       <noscript>Consulte o status em <a href="/api/health">/api/health</a>.</noscript>
     </main>

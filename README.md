@@ -51,10 +51,77 @@ Os testes verificam saúde, HTML, CSS, JavaScript, respostas 404/405 e HEAD atra
 
 ## Futuras implementações
 
-PostgreSQL será o banco de dados futuro. `DATABASE_URL` está apenas documentada com valores fictícios, sem conexão, driver, tabelas ou migrações nesta etapa.
+PostgreSQL no Neon é acessado pelo cliente SQL nativo do Bun em `src/db/connection.ts`.
+Os arquivos SQL versionados são revisados e executados separadamente; o servidor não aplica migrações automaticamente.
 
-A autenticação futura utilizará Argon2id nativo via `Bun.password`, selecionando explicitamente o algoritmo `argon2id`. Nenhuma autenticação ou biblioteca de hash foi adicionada.
+A autenticação utiliza Argon2id nativo via `Bun.password`, selecionando explicitamente o algoritmo `argon2id`, sem biblioteca de hash adicional.
 
 Não há cadastro de pacientes, integração com WhatsApp nem dados reais de pacientes.
+
+## Autenticação e execução local
+
+As tabelas de autenticação estão definidas em `sql/002_create_auth_tables.sql`.
+O servidor não executa SQL de criação nem cadastra usuários ao iniciar.
+Configure `DATABASE_URL` no `.env` da raiz, mantenha esse arquivo fora do Git e execute:
+
+```powershell
+bun run dev
+```
+
+Abra http://127.0.0.1:3000. A página permite entrar, consultar nome/perfil e sair.
+Para testar o login bem-sucedido é necessária uma conta previamente criada de forma autorizada.
+Nenhuma conta é fornecida por padrão. Sem conta, é possível revisar a tela e suas mensagens;
+os testes automatizados verificam o fluxo completo com SQL simulado, sem acessar o Neon.
+
+O comando abaixo é uma operação separada que **grava no banco configurado**.
+Execute-o somente quando autorizar a criação real do primeiro administrador:
+
+```powershell
+bun run admin:create
+```
+
+O script exige um terminal interativo, solicita nome/e-mail e senha com confirmação oculta,
+não aceita argumentos e recusa a criação se já houver administrador, inclusive inativo.
+Usa o serviço de cadastro existente e uma transação com bloqueio contra execuções concorrentes.
+Não há cadastro público. Não coloque senhas em comandos, arquivos ou logs.
+
+### Rotas e proteção
+
+- `POST /api/auth/login`: verifica senha e usuário ativo e cria a sessão.
+- `POST /api/auth/logout`: remove a sessão e limpa o cookie.
+- `GET /api/auth/me`: verifica a sessão e retorna somente id, nome, e-mail e perfil.
+- `/api/admin` e seus subcaminhos: exigem sessão e perfil administrador;
+  retornam 404 após autorização, pois ainda não existem funcionalidades administrativas.
+- `/api/health` e os arquivos públicos do login continuam acessíveis sem sessão.
+
+Controllers futuros devem verificar sessão e `temPerfil()` antes de consultar dados de negócio.
+`temPerfil(usuario, ["administrador"])` permite somente administradores;
+`temPerfil(usuario, ["administrador", "funcionario"])` permite os dois perfis.
+O catálogo atual não disponibiliza nenhuma rota de pacientes ou histórico clínico.
+
+Senhas usam Argon2id. Tokens aleatórios de 32 bytes ficam somente no cookie HttpOnly,
+SameSite=Strict; o banco armazena seu SHA-256. Não se usa localStorage.
+O servidor verifica usuário ativo, expiração absoluta de 8 horas e inatividade de 30 minutos
+ao validar a sessão. A sessão não é renovada por consultas periódicas da interface.
+Logout exclui a sessão; um novo login substitui a sessão enviada pelo mesmo navegador.
+Sessões expiradas não autorizam acesso, mesmo que seus registros ainda existam no banco.
+
+Login e logout exigem o cabeçalho Origin correspondente à aplicação; login exige JSON,
+com limite de 4 KiB. Há limite de 5 tentativas por e-mail em 15 minutos e 60 tentativas
+globais por minuto. O limitador fica em memória, reinicia com o processo e é adequado
+a uma instância; antes de usar várias instâncias, será necessário compartilhar esses limites.
+
+### Produção
+
+Configure `NODE_ENV=production` e `APP_ORIGIN` com a origem HTTPS pública exata,
+por exemplo `https://clinica.example`, sem barra final. Use HTTPS no acesso público
+(diretamente ou no proxy da hospedagem). A origem é configurada explicitamente;
+o servidor não confia em cabeçalhos encaminhados para decidir a origem autorizada.
+Em produção o cookie usa `Secure` e o prefixo `__Host-`, sem atributo Domain.
+Em desenvolvimento HTTP local, o cookie não usa Secure. Não use esse modo em produção.
+
+Os testes de autenticação e primeiro administrador usam clientes SQL simulados e hashes
+locais do Bun. Eles não criam contas nem sessões no Neon. Execute `bun test` e
+`bun run typecheck` para verificar o projeto.
 
 Referências oficiais: [servidor HTTP do Bun](https://bun.sh/docs/runtime/http/server) e [Bun.password](https://bun.sh/reference/bun/password).
