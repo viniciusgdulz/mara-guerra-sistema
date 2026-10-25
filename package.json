@@ -9,7 +9,8 @@
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:test": "bun --env-file=.env scripts/test-db.ts"
   },
   "devDependencies": { "@types/bun": "1.3.14", "typescript": "~5.9.3" }
 }
