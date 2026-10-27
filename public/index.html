@@ -6,6 +6,7 @@
     <title>Mara Guerra Estética Avançada — Sistema de Gestão</title>
     <link rel="stylesheet" href="/css/styles.css" />
     <script src="/js/navigation.js" defer></script>
+    <script src="/js/agenda.js" defer></script>
     <script src="/js/procedimentos.js" defer></script>
     <script src="/js/atendimentos.js" defer></script>
     <script src="/js/app.js" defer></script>
@@ -33,6 +34,7 @@
         <nav class="main-nav" aria-label="Navegação principal">
           <button id="nav-inicio" type="button" data-screen="inicio" aria-controls="inicio-area" aria-current="page">Início</button>
           <button id="nav-pacientes" type="button" data-screen="pacientes" aria-controls="pacientes-area">Pacientes</button>
+          <button id="nav-agenda" type="button" data-screen="agenda" aria-controls="agenda-area">Agenda</button>
           <button id="nav-procedimentos" type="button" data-screen="procedimentos" aria-controls="procedimentos-area">Procedimentos</button>
           <button id="nav-atendimentos" type="button" data-screen="atendimentos" aria-controls="atendimentos-area" hidden>Atendimentos</button>
         </nav>
@@ -43,6 +45,75 @@
             <button id="atalho-novo-paciente" type="button">Novo paciente</button>
             <button id="atalho-consultar-pacientes" type="button" class="secondary">Consultar pacientes</button>
             <button id="atalho-atendimento" type="button" hidden>Registrar atendimento</button>
+          </div>
+        </section>
+        <section id="agenda-area" class="screen" hidden aria-labelledby="agenda-title">
+          <h2 id="agenda-title" tabindex="-1">Agenda</h2>
+          <p>Datas e horários no fuso de São Paulo.</p>
+          <button id="novo-agendamento" type="button" aria-controls="agenda-editor" aria-expanded="false">Novo agendamento</button>
+          <div id="agenda-editor" hidden>
+            <h3 id="agenda-editor-title">Novo agendamento</h3>
+            <p id="agenda-vinculo"></p>
+            <div id="agenda-selecao-paciente">
+              <form id="agenda-paciente-pesquisa" role="search">
+                <label for="agenda-paciente-busca">Pesquisar paciente pelo nome</label>
+                <input id="agenda-paciente-busca" type="search" maxlength="150" />
+                <button type="submit">Pesquisar pacientes</button>
+              </form>
+              <label for="agenda-paciente">Paciente</label>
+              <select id="agenda-paciente"><option value="">Selecione um paciente</option></select>
+              <div class="pagination"><button id="agenda-paciente-anterior" type="button" disabled>Pacientes anteriores</button><button id="agenda-paciente-proxima" type="button" disabled>Próximos pacientes</button></div>
+              <p id="agenda-paciente-message" role="status" aria-live="polite"></p>
+            </div>
+            <div id="agenda-selecao-procedimento">
+              <form id="agenda-procedimento-pesquisa" role="search">
+                <label for="agenda-procedimento-busca">Pesquisar procedimento ativo</label>
+                <input id="agenda-procedimento-busca" type="search" maxlength="150" />
+                <button type="submit">Pesquisar procedimentos</button>
+              </form>
+              <label for="agenda-procedimento">Procedimento ativo</label>
+              <select id="agenda-procedimento"><option value="">Selecione um procedimento</option></select>
+              <div class="pagination"><button id="agenda-procedimento-anterior" type="button" disabled>Procedimentos anteriores</button><button id="agenda-procedimento-proxima" type="button" disabled>Próximos procedimentos</button></div>
+              <p id="agenda-procedimento-message" role="status" aria-live="polite"></p>
+            </div>
+            <form id="agenda-form">
+              <label for="agenda-data">Data *</label><input id="agenda-data" type="date" required />
+              <label for="agenda-hora">Horário *</label><input id="agenda-hora" type="time" step="60" required />
+              <button id="agenda-salvar" type="submit">Salvar agendamento</button>
+              <button id="agenda-cancelar-edicao" type="button" class="secondary">Cancelar e voltar à agenda</button>
+            </form>
+          </div>
+          <p id="agenda-message" role="status" aria-live="polite"></p>
+          <div id="agenda-consulta">
+            <form id="agenda-filtros" role="search">
+              <label for="agenda-dia">Dia da agenda</label><input id="agenda-dia" type="date" required />
+              <label for="agenda-busca">Pesquisar pelo nome do paciente</label><input id="agenda-busca" type="search" maxlength="150" />
+              <button type="submit">Consultar / atualizar agenda</button>
+            </form>
+            <div class="pagination"><button id="agenda-dia-anterior" type="button">Dia anterior</button><button id="agenda-hoje" type="button">Hoje</button><button id="agenda-dia-proximo" type="button">Próximo dia</button></div>
+            <p id="agenda-lista-message" role="status" aria-live="polite"></p>
+            <div class="table-scroll"><table>
+              <caption>Agendamentos do dia selecionado</caption>
+              <thead><tr><th scope="col">Horário</th><th scope="col">Paciente</th><th scope="col">Telefone</th><th scope="col">Procedimento</th><th scope="col">Status</th><th scope="col">Ações</th></tr></thead>
+              <tbody id="agenda-lista"></tbody>
+            </table></div>
+            <div class="pagination"><button id="agenda-anterior" type="button" disabled>Anterior</button><span id="agenda-pagina"></span><button id="agenda-proxima" type="button" disabled>Próxima</button></div>
+            <section id="agenda-retornos-area" hidden aria-labelledby="agenda-retornos-title">
+              <h3 id="agenda-retornos-title">Retornos sugeridos</h3>
+              <p>Consulte as sugestões e escolha um horário para agendar. Nenhum agendamento é criado automaticamente.</p>
+              <form id="agenda-retornos-filtros">
+                <label for="agenda-retornos-inicio">De</label><input id="agenda-retornos-inicio" type="date" required />
+                <label for="agenda-retornos-fim">Até</label><input id="agenda-retornos-fim" type="date" required />
+                <button type="submit">Consultar retornos</button>
+              </form>
+              <p id="agenda-retornos-message" role="status" aria-live="polite"></p>
+              <div class="table-scroll"><table>
+                <caption>Sugestões de retorno do período</caption>
+                <thead><tr><th scope="col">Data sugerida</th><th scope="col">Paciente</th><th scope="col">Procedimento</th><th scope="col">Ações</th></tr></thead>
+                <tbody id="agenda-retornos-lista"></tbody>
+              </table></div>
+              <div class="pagination"><button id="agenda-retornos-anterior" type="button" disabled>Anterior</button><span id="agenda-retornos-pagina"></span><button id="agenda-retornos-proxima" type="button" disabled>Próxima</button></div>
+            </section>
           </div>
         </section>
         <section id="pacientes-area" class="screen" hidden aria-labelledby="pacientes-title">

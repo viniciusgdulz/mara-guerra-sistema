@@ -237,3 +237,54 @@ Para validar no navegador, execute `bun run dev` e abra http://127.0.0.1:3000:
 6. Como funcionário, confirme a ausência de gerenciamento de procedimentos e do menu/atalho Atendimentos. As restrições também continuam verificadas nas APIs.
 
 `tests/navigation-ui.test.ts` carrega o HTML e os quatro scripts com DOM e API simulados para testar a integração sem banco ou rede. Execute `bun test`, `bun run typecheck` e `git diff --check`; a validação visual manual é separada.
+
+## Fase 8 — Agendamentos e retornos
+
+Schema conferido em `sql/001_create_tables.sql`: `agendamentos` tem paciente obrigatório, procedimento opcional no banco, horário TIMESTAMPTZ e status restritos; `atendimentos` armazena a data sugerida de retorno. A aplicação exige procedimento ativo para novos agendamentos e reagendamentos. Não há migração nem execução de comandos no Neon durante a implementação ou nos testes.
+
+A tela **Agenda** fica disponível aos dois perfis e inicia em consulta do dia atual. A primeira abertura carrega a agenda; a navegação entre as outras telas permanece sem recarga. Há botões de dia anterior, próximo dia e hoje, pesquisa por nome do paciente, paginação de 50 registros e formulários abertos somente sob demanda. Datas e horários são interpretados e exibidos em `America/Sao_Paulo`, independentemente do fuso do navegador/servidor. Horários são informados com precisão de minutos; horários inexistentes durante mudanças históricas de fuso são recusados.
+
+| Ação | Administrador | Funcionário |
+| --- | --- | --- |
+| Criar, consultar, reagendar e cancelar | Sim | Sim |
+| Concluir agendamento | Sim | Não |
+| Consultar e agendar sugestões de retorno | Sim | Não |
+| Consultar histórico clínico | Sim, nas rotas da Fase 7 | Não |
+
+O backend verifica sessão, perfil e origem em cada operação. A agenda comum retorna somente campos do agendamento, nome e telefone do paciente e nome do procedimento; não consulta atendimentos. As rotas de retornos são exclusivas de administradores, inclusive acesso direto pela API. Escritas exigem JSON, até 4 KiB, campos conhecidos e dados válidos. Consultas são parametrizadas e respostas usam `Cache-Control: no-store`. A autenticação existente foi preservada.
+
+### Status e regras
+
+- **Agendado** corresponde a `pendente`. Registros existentes `confirmado` aparecem como **Agendado (confirmado)** e continuam podendo ser reagendados, cancelados ou concluídos.
+- **Concluído** corresponde a `realizado`; **Cancelado** a `cancelado`. Registros existentes `nao_compareceu` são exibidos como **Não compareceu**.
+- Somente registros em aberto (`pendente` ou `confirmado`) podem ser reagendados ou encerrados. Não há reabertura ou exclusão permanente. Repetir o mesmo encerramento é idempotente.
+- Reagendar mantém o paciente e o status, permite escolher outro procedimento ativo e altera data/horário. Agendamentos antigos sem procedimento ou com procedimento hoje inativo permanecem consultáveis; para reagendar, selecione um procedimento ativo.
+- Duplicidade é o mesmo paciente no mesmo instante, em qualquer procedimento, exceto agendamentos cancelados. Registros concluídos e de não comparecimento continuam ocupando esse instante para o paciente. Outros pacientes podem ter o mesmo horário: não há controle de sala/profissional/duração nesta fase.
+- Cadastro, reagendamento e criação por sugestão usam transações e bloqueio do paciente (`FOR UPDATE`), com conferência de duplicidade antes de gravar. A checagem de procedimento ativo usa `FOR SHARE`. Isso serializa as operações realizadas por estas rotas, inclusive requisições concorrentes. O schema não tem restrição UNIQUE de horário; gravações externas que ignorem esse protocolo não recebem essa garantia.
+- Concluir não cria atendimento clínico automaticamente. O registro clínico continua sendo realizado separadamente por administrador em Atendimentos. Não há envio de WhatsApp ou criação de notificações.
+
+### Rotas
+
+- `GET /api/agenda?data=AAAA-MM-DD&nome=texto&pagina=1`: consulta por dia de São Paulo e pesquisa parcial por nome. Resposta: `agendamentos`, `pagina`, `temMais`.
+- `POST /api/agenda`: recebe `paciente_id`, `procedimento_id`, `data` (`AAAA-MM-DD`) e `hora` (`HH:MM`). Retorna 201 com `agendamento`, status inicial `pendente`.
+- `PUT /api/agenda/:id`: recebe `procedimento_id`, `data` e `hora`. Retorna 200.
+- `PATCH /api/agenda/:id/status`: recebe somente `status` (`cancelado` ou `realizado`). Retorna 200; `realizado` exige administrador.
+- `GET /api/agenda/procedimentos?nome=texto&pagina=1`: catálogo ativo de seleção para ambos os perfis.
+- `GET /api/agenda/retornos?inicio=AAAA-MM-DD&fim=AAAA-MM-DD&pagina=1`: exclusivo de administrador, período de até 366 dias. Retorna `retornos`, `pagina`, `temMais`; cada sugestão inclui identificador, paciente, procedimento, data sugerida e indicação de procedimento ativo.
+- `POST /api/agenda/retornos/:sugestao_id/agendar`: exclusivo de administrador; recebe somente `data` e `hora`. Paciente e procedimento são obtidos no backend a partir da sugestão existente. Exige que o procedimento continue ativo. Retorna 201.
+
+Datas devem existir, entre os anos 0001 e 9999, e horários devem estar entre 00:00 e 23:59. É possível registrar/reagendar datas passadas para organizar a agenda existente; não há bloqueio de antecedência nesta fase. Ausência de paciente/agendamento/sugestão retorna 404; conflito de horário ou status encerrado retorna 409; validação retorna 400. Falhas inesperadas retornam mensagem segura.
+
+As sugestões de retorno não geram agendamentos automaticamente. O administrador consulta um período, clica em **Agendar retorno**, escolhe horário e confirma o envio. É permitido ajustar a data sugerida para o horário disponível. Procedimentos inativos permanecem visíveis nas sugestões, com indicação da indisponibilidade. Como o schema não vincula agendamento à sugestão, ela permanece na consulta após agendar; consulte a agenda antes de repetir. Nenhuma sugestão é marcada como atendida automaticamente.
+
+### Validar a Fase 8 no navegador
+
+1. Execute `bun run dev`, abra http://127.0.0.1:3000 e entre com uma conta existente. Abra **Agenda**; confira o dia atual, os botões entre datas e a pesquisa por paciente.
+2. Como funcionário, confira que não há seção Retornos nem ação Concluir. Como administrador, confira ambas. As restrições também são verificadas nas APIs, não apenas na tela.
+3. Clique **Novo agendamento**, pesquise paciente e procedimento ativo usando os seletores paginados e escolha data e horário. **Cancelar e voltar à agenda** fecha o formulário sem gravar.
+4. Testes de escrita devem usar exclusivamente um banco separado de desenvolvimento com o schema existente, configurado em `DATABASE_URL` antes de iniciar o servidor. Não insira dados fictícios no Neon da clínica.
+5. Nesse banco separado, salve um agendamento e confira a confirmação e a agenda do dia escolhido. Tente repetir paciente/data/horário e confira a mensagem de duplicidade. Reagende; cancele com confirmação; como administrador, conclua um agendamento em aberto. Registros encerrados devem continuar visíveis sem ações de alteração.
+6. Como administrador, consulte Retornos por período. **Agendar retorno** somente abre o formulário; escolha horário e salve explicitamente. Confira paciente/procedimento corretos. Uma sugestão com procedimento inativo deve permanecer visível, sem botão para agendar esse procedimento.
+7. Teste teclado (Tab/Enter), visualização no celular, mensagens, paginação e logout. Confirme que a sessão expirada limpa a tela e que funcionários recebem 403 nas rotas de retornos e ao tentar concluir.
+
+Arquivos principais: `src/services/agenda.service.ts`, `src/controllers/agenda.controller.ts` e `public/js/agenda.js`. `tests/agenda.test.ts` usa SQL e transações simulados, incluindo disputa concorrente pelo mesmo horário. `tests/navigation-ui.test.ts` cobre a integração da Agenda, envio explícito de retorno, cancelamento de edição, mensagens e descarte de respostas após mudança de perfil. Execute `bun test`, `bun run typecheck` e `git diff --check`, sem conexão com o Neon. A validação visual manual no navegador é separada.

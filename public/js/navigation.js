@@ -1,5 +1,6 @@
 ﻿const screens = {
   inicio: { area: "inicio-area", title: "home-title" },
+  agenda: { area: "agenda-area", title: "agenda-title", editor: "agenda-editor", list: "agenda-consulta", button: "novo-agendamento", input: "agenda-paciente" },
   pacientes: { area: "pacientes-area", title: "pacientes-title", editor: "paciente-editor", list: "pacientes-consulta", button: "novo-paciente", input: "paciente-nome" },
   procedimentos: { area: "procedimentos-area", title: "procedimentos-title", editor: "procedimento-editor", list: "procedimentos-consulta", button: "novo-procedimento", input: "procedimento-nome" },
   atendimentos: { area: "atendimentos-area", title: "atendimentos-title", editor: "atendimento-editor", list: "atendimentos-consulta", button: "novo-atendimento", input: "atendimento-procedimento" },
@@ -11,10 +12,10 @@ const navElement = id => document.getElementById(id);
 function showEditor(screen, open, focus = true) {
   const config = screens[screen];
   if (!config?.editor) return;
-  if (open && (!navigationUser || (screen !== "pacientes" && navigationUser.perfil !== "administrador"))) return;
+  if (open && (!navigationUser || (!["pacientes", "agenda"].includes(screen) && navigationUser.perfil !== "administrador"))) return;
   navElement(config.editor).hidden = !open;
   navElement(config.list).hidden = open;
-  const allowed = screen === "pacientes" || navigationUser?.perfil === "administrador";
+  const allowed = ["pacientes", "agenda"].includes(screen) || navigationUser?.perfil === "administrador";
   navElement(config.button).hidden = open || !allowed;
   navElement(config.button).setAttribute("aria-expanded", String(open));
   if (focus && activeScreen === screen) navElement(open ? config.input : config.title).focus();
@@ -30,6 +31,7 @@ function showScreen(screen, focus = true) {
     showEditor(name, false, false);
   }
   if (focus) navElement(screens[screen].title).focus();
+  if (screen === "agenda") openAgenda();
 }
 function setupNavigation(usuario) {
   const changed = navigationUser?.id !== usuario?.id || navigationUser?.perfil !== usuario?.perfil;

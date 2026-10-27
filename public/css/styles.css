@@ -77,3 +77,8 @@ select:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
   .main-nav button, .shortcuts button { width: 100%; }
   .shortcuts { display: grid; }
 }
+
+#agenda-editor { padding: 1rem; margin-top: 1rem; border: 1px solid #e8dde2; border-radius: .75rem; background: #fdfafb; }
+#agenda-selecao-paciente, #agenda-selecao-procedimento { margin-bottom: 1.5rem; }
+#agenda-selecao-paciente > label, #agenda-selecao-procedimento > label { display: block; margin-top: .75rem; }
+#agenda-lista button { margin-right: .5rem; }

@@ -2,7 +2,7 @@
 import { createContext, runInContext } from "node:vm";
 
 const html = await Bun.file(new URL("../public/index.html", import.meta.url)).text();
-const scripts = await Promise.all(["navigation", "procedimentos", "atendimentos", "app"].map(name => Bun.file(new URL(`../public/js/${name}.js`, import.meta.url)).text()));
+const scripts = await Promise.all(["navigation", "agenda", "procedimentos", "atendimentos", "app"].map(name => Bun.file(new URL(`../public/js/${name}.js`, import.meta.url)).text()));
 type Evento = { preventDefault(): void };
 class Elemento {
   value = ""; textContent = ""; hidden = false; disabled = false; checked = false; focused = false;
@@ -45,6 +45,7 @@ async function interfaceSimulada(perfil = "administrador") {
     if (init?.method && init.method !== "GET") {
       if (fail) return Response.json({ error: "Dados inválidos para teste." }, { status: 400 });
       if (path === "/api/pacientes") return Response.json({ paciente }, { status: 201 });
+      if (path.startsWith("/api/agenda")) return Response.json({ agendamento: { id: "agenda-teste", data_hora: "2024-01-02T13:00:00Z" } });
       if (path.startsWith("/api/procedimentos")) return Response.json({ procedimento });
       if (path.startsWith("/api/atendimentos")) return Response.json({ atendimento: { data_retorno_sugerida: "2024-02-01" } });
       return new Response(null, { status: 204 });
@@ -52,6 +53,9 @@ async function interfaceSimulada(perfil = "administrador") {
     if (path === "/api/health") return Response.json({ status: "ok" });
     if (path === "/api/auth/me") return Response.json({ usuario: { id: "usuario", nome: "Equipe Teste", perfil } });
     if (path.startsWith("/api/pacientes")) return Response.json({ pacientes: [paciente], temMais: false });
+    if (path.startsWith("/api/agenda/procedimentos")) return Response.json({ procedimentos: [procedimento], temMais: false });
+    if (path.startsWith("/api/agenda/retornos")) return Response.json({ retornos: [{ sugestao_id: "sugestao-teste", paciente_id: paciente.id, procedimento_id: procedimento.id, paciente_nome: paciente.nome, procedimento_nome: procedimento.nome, procedimento_ativo: true, data_retorno_sugerida: "2024-01-02" }], temMais: false });
+    if (path.startsWith("/api/agenda")) return Response.json({ agendamentos: [{ id: "agenda-teste", paciente_id: paciente.id, procedimento_id: procedimento.id, paciente_nome: paciente.nome, paciente_telefone: paciente.telefone, procedimento_nome: procedimento.nome, data_hora: "2024-01-02T13:00:00Z", status: "pendente" }], temMais: false });
     if (path.startsWith("/api/procedimentos") || path.startsWith("/api/atendimentos/procedimentos")) return Response.json({ procedimentos: [procedimento], temMais: false });
     return Response.json({ atendimentos: [], temMais: false });
   });
@@ -63,7 +67,7 @@ async function interfaceSimulada(perfil = "administrador") {
   return { get, fetch, run: (code: string) => runInContext(code, context), fail: () => { fail = true; } };
 }
 function telaVisivel(ui: Awaited<ReturnType<typeof interfaceSimulada>>, selected: string) {
-  for (const name of ["inicio", "pacientes", "procedimentos", "atendimentos"]) expect(ui.get(`${name}-area`).hidden).toBe(name !== selected);
+  for (const name of ["inicio", "agenda", "pacientes", "procedimentos", "atendimentos"]) expect(ui.get(`${name}-area`).hidden).toBe(name !== selected);
   expect(ui.get(`nav-${selected}`).attributes.get("aria-current")).toBe("page");
 }
 
@@ -142,4 +146,52 @@ test("trocar tela fecha editores, logout limpa navegação e novo login abre In�
   expect(ui.get("paciente-editor").hidden).toBe(true);
   await ui.get("sair").fire(); expect(ui.get("home-area").hidden).toBe(true); expect(ui.get("atendimentos-area").hidden).toBe(true);
   await ui.run("loadUser()"); telaVisivel(ui, "inicio"); expect(ui.get("paciente-editor").hidden).toBe(true);
+});
+
+test("Agenda carrega sob demanda, navega por dia e funcionário cria sem consultar retornos", async () => {
+  const ui = await interfaceSimulada("funcionario");
+  expect(ui.fetch.mock.calls.some(([url]) => url.startsWith("/api/agenda"))).toBe(false);
+  await ui.get("nav-agenda").fire(); await settle(); telaVisivel(ui, "agenda");
+  expect(ui.get("agenda-retornos-area").hidden).toBe(true);
+  const dia = ui.get("agenda-dia").value;
+  await ui.get("agenda-dia-proximo").fire(); await settle(); expect(ui.get("agenda-dia").value).not.toBe(dia);
+  await ui.get("agenda-dia-anterior").fire(); await settle(); expect(ui.get("agenda-dia").value).toBe(dia);
+  await ui.get("novo-agendamento").fire(); await settle();
+  expect(ui.get("agenda-editor").hidden).toBe(false); expect(ui.get("agenda-consulta").hidden).toBe(true);
+  ui.get("agenda-paciente").value = "paciente-teste"; ui.get("agenda-procedimento").value = "procedimento-teste";
+  ui.get("agenda-data").value = "2024-01-02"; ui.get("agenda-hora").value = "10:00";
+  await ui.get("agenda-form").fire("submit"); await settle();
+  expect(ui.get("agenda-editor").hidden).toBe(true); expect(ui.get("agenda-message").textContent).toContain("sucesso");
+  expect(ui.fetch.mock.calls.some(([url]) => url.startsWith("/api/agenda/retornos"))).toBe(false);
+  expect(ui.get("agenda-lista").children[0]!.children[5]!.children).toHaveLength(2);
+});
+test("retorno exige consulta e envio explícito do administrador", async () => {
+  const ui = await interfaceSimulada(); await ui.get("nav-agenda").fire(); await settle();
+  expect(ui.get("agenda-retornos-area").hidden).toBe(false);
+  await ui.get("agenda-retornos-filtros").fire("submit"); await settle();
+  const antes = ui.fetch.mock.calls.filter(([, init]) => init?.method === "POST").length;
+  await ui.get("agenda-retornos-lista").children[0]!.children[3]!.children[0]!.fire();
+  expect(ui.get("agenda-editor").hidden).toBe(false); expect(ui.get("agenda-data").value).toBe("2024-01-02");
+  expect(ui.fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(antes);
+  ui.get("agenda-hora").value = "10:00"; await ui.get("agenda-form").fire("submit"); await settle();
+  expect(ui.fetch.mock.calls.some(([url, init]) => url === "/api/agenda/retornos/sugestao-teste/agendar" && init?.method === "POST")).toBe(true);
+  expect(ui.get("agenda-editor").hidden).toBe(true);
+});
+test("Agenda mantém formulário no erro e cancelamento da edição não grava", async () => {
+  const ui = await interfaceSimulada(); await ui.get("nav-agenda").fire(); await settle();
+  await ui.get("novo-agendamento").fire(); await settle(); ui.fail();
+  await ui.get("agenda-form").fire("submit"); await settle();
+  expect(ui.get("agenda-editor").hidden).toBe(false); expect(ui.get("agenda-message").textContent).toContain("inválidos");
+  const calls = ui.fetch.mock.calls.length; await ui.get("agenda-cancelar-edicao").fire();
+  expect(ui.get("agenda-editor").hidden).toBe(true); expect(ui.fetch.mock.calls).toHaveLength(calls);
+});
+
+test("retorno atrasado é descartado ao mudar de administrador para funcionário", async () => {
+  const ui = await interfaceSimulada();
+  ui.run('fetch = () => new Promise(resolve => { globalThis.resolverRetorno = resolve; }); loadAgendaReturns(1);');
+  ui.run('setupAgenda({ id: "outro-usuario", perfil: "funcionario" });');
+  ui.run('resolverRetorno({ status: 200, ok: true, json: async () => ({ retornos: [{ sugestao_id: "interno", paciente_nome: "Paciente Teste", procedimento_nome: "Teste", procedimento_ativo: true, data_retorno_sugerida: "2024-01-02" }], temMais: false }) });');
+  await settle();
+  expect(ui.get("agenda-retornos-area").hidden).toBe(true);
+  expect(ui.get("agenda-retornos-lista").children).toHaveLength(0);
 });

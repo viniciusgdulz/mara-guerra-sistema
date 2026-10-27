@@ -28,6 +28,7 @@ function showUser(usuario) {
   password.value = "";
   setupProcedures(usuario);
   setupAppointments(usuario);
+  setupAgenda(usuario);
   setupNavigation(usuario);
   if (!usuario) clearPatients();
   else if (entrando) loadPatients(1);
