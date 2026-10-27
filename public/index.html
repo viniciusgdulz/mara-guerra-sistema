@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mara Guerra Estética Avançada — Sistema de Gestão</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <script src="/js/procedimentos.js" defer></script>
     <script src="/js/app.js" defer></script>
   </head>
   <body>
@@ -61,6 +62,42 @@
             <button type="button" id="pagina-anterior" disabled>Anterior</button>
             <span id="pagina-atual"></span>
             <button type="button" id="pagina-proxima" disabled>Próxima</button>
+          </div>
+        </section>
+        <section aria-labelledby="procedimentos-title">
+          <h2 id="procedimentos-title">Procedimentos</h2>
+          <p id="procedimentos-access"></p>
+          <div id="procedimento-editor" hidden>
+            <h3 id="procedimento-form-title">Novo procedimento</h3>
+            <form id="procedimento-form">
+              <label for="procedimento-nome">Nome *</label>
+              <input id="procedimento-nome" name="nome" maxlength="150" required />
+              <label for="procedimento-descricao">Descrição (opcional)</label>
+              <textarea id="procedimento-descricao" name="descricao" maxlength="4000" rows="4"></textarea>
+              <label for="procedimento-intervalo">Retorno sugerido em dias (opcional)</label>
+              <input id="procedimento-intervalo" name="intervalo_retorno_dias" type="number" min="1" max="2147483647" step="1" />
+              <button id="salvar-procedimento" type="submit">Cadastrar procedimento</button>
+              <button id="cancelar-procedimento" type="button" hidden>Cancelar edição</button>
+            </form>
+          </div>
+          <p id="procedimento-message" role="status" aria-live="polite"></p>
+          <form id="procedimentos-pesquisa" role="search">
+            <label for="procedimentos-busca">Pesquisar procedimentos por nome</label>
+            <input id="procedimentos-busca" type="search" maxlength="150" />
+            <button type="submit">Pesquisar / atualizar catálogo</button>
+          </form>
+          <p id="procedimentos-lista-message" role="status" aria-live="polite"></p>
+          <div class="table-scroll">
+            <table>
+              <caption>Catálogo de procedimentos</caption>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Descrição</th><th scope="col">Retorno sugerido</th><th scope="col">Status</th><th scope="col" id="procedimentos-actions" hidden>Ações</th></tr></thead>
+              <tbody id="procedimentos-lista"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button type="button" id="procedimentos-anterior" disabled>Anterior</button>
+            <span id="procedimentos-pagina"></span>
+            <button type="button" id="procedimentos-proxima" disabled>Próxima</button>
           </div>
         </section>
       </section>

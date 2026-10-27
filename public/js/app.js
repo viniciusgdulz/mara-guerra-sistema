@@ -26,6 +26,7 @@ function showUser(usuario) {
   document.getElementById("user-name").textContent = usuario?.nome ?? "";
   document.getElementById("user-role").textContent = usuario?.perfil === "administrador" ? "Administrador" : "Funcionário";
   password.value = "";
+  setupProcedures(usuario);
   if (!usuario) clearPatients();
   else if (entrando) loadPatients(1);
 }

@@ -46,3 +46,10 @@ th { background: #f3edf0; }
   body { padding: .5rem; }
   th, td { min-width: 9rem; }
 }
+
+textarea { font: inherit; padding: .75rem 1rem; border-radius: .5rem; border: 1px solid #a99aa4; width: 100%; resize: vertical; }
+textarea:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
+.procedure-actions { min-width: 10rem; }
+.procedure-actions button { margin-right: .5rem; }
+#procedimentos-lista td { white-space: pre-wrap; }
+#procedimento-message, #procedimentos-lista-message { min-height: 1.5em; }

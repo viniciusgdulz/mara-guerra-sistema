@@ -6,10 +6,12 @@ import { isAuthRoute } from "./routes/auth.routes";
 import { createConnection } from "./db/connection";
 import type { SQL } from "bun";
 import { criarPacientesController } from "./controllers/pacientes.controller";
+import { criarProcedimentosController } from "./controllers/procedimentos.controller";
 
 let db: SQL | undefined;
 const auth = criarAuthController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
 const pacientes = criarPacientesController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
+const procedimentos = criarProcedimentosController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
 
 export async function closeConnection(): Promise<void> {
   if (db) await db.close({ timeout: 5 });
@@ -21,6 +23,7 @@ const staticFiles = new Map([
   ["/index.html", new URL("../public/index.html", import.meta.url)],
   ["/css/styles.css", new URL("../public/css/styles.css", import.meta.url)],
   ["/js/app.js", new URL("../public/js/app.js", import.meta.url)],
+  ["/js/procedimentos.js", new URL("../public/js/procedimentos.js", import.meta.url)],
 ]);
 
 export async function handleRequest(request: Request): Promise<Response> {
@@ -33,6 +36,7 @@ export async function handleRequest(request: Request): Promise<Response> {
 
 async function routeRequest(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
+  if (pathname === "/api/procedimentos" || pathname.startsWith("/api/procedimentos/")) return procedimentos(request);
   if (pathname === "/api/pacientes" || pathname.startsWith("/api/pacientes/")) return pacientes(request);
   if (isAuthRoute(pathname) || pathname === "/api/admin" || pathname.startsWith("/api/admin/")) {
     return auth(request);

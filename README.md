@@ -154,3 +154,32 @@ e `tests/pacientes.test.ts`. Os testes usam SQL simulado e não acessam o Neon.
 6. Saia da conta: formulário e lista são limpos. Sem sessão, chamadas à API retornam 401. Repita com o outro perfil para conferir acesso equivalente.
 
 Validação automatizada: `bun test` e `bun run typecheck`. Nenhum comando de migração ou de inserção no Neon é necessário para esses testes.
+
+## Fase 6 — Cadastro de procedimentos
+
+Utiliza a tabela `procedimentos` de `sql/001_create_tables.sql`, conferida no schema versionado antes da implementação. Não há migração nem execução de comandos no Neon durante a implementação ou nos testes automatizados.
+
+- Administrador: cadastra, consulta todos os procedimentos (ativos e inativos), edita e inativa.
+- Funcionário: consulta somente os ativos; o filtro é aplicado no SQL com base no perfil da sessão, independentemente de parâmetros enviados pelo cliente.
+- `GET /api/procedimentos?nome=teste&pagina=1`: pesquisa parcial sem distinguir maiúsculas/minúsculas. Nome vazio lista o catálogo permitido. Até 50 registros por página, ordenados por nome e id; resposta com `procedimentos`, `pagina` e `temMais`.
+- `POST /api/procedimentos`: cadastra como ativo, com `{ "nome": "Nome", "descricao": null, "intervalo_retorno_dias": null }`. Retorna 201.
+- `PUT /api/procedimentos/:id`: substitui nome, descrição e intervalo, preservando o status atual. Retorna 200 ou 404 para registro ausente.
+- `POST /api/procedimentos/:id/inativar`: define `ativo = false`. Repetir a operação mantém o registro inativo. Retorna 200 ou 404.
+- Não há exclusão permanente nem reativação nesta versão. Editar um inativo não o reativa. Não há detecção de duplicidade.
+
+Nome obrigatório com 1–150 caracteres após remover espaços das extremidades. Descrição opcional com limite de aplicação de 4000 caracteres. Intervalo opcional, inteiro entre 1 e 2147483647 (limite de INTEGER do PostgreSQL), em dias. Opcionais ausentes ou nulos são armazenados como NULL; descrição vazia também. No JSON, intervalo deve ser número ou null, sem strings. Na edição, opcionais omitidos são limpos. Campos adicionais são rejeitados; o status só muda pela rota de inativação.
+
+Todas as rotas verificam sessão e perfil no backend. Operações de escrita exigem origem autorizada; cadastro e edição exigem JSON com corpo de até 32 KiB. As consultas são parametrizadas, retornam somente campos do catálogo e não são armazenadas em cache. Cookies, prazos de sessão e autenticação existentes foram preservados.
+
+Implementação em `src/services/procedimentos.service.ts`, `src/controllers/procedimentos.controller.ts` e `public/js/procedimentos.js`. Os testes em `tests/procedimentos.test.ts` usam SQL simulado, sem conexão com o Neon.
+
+### Testar procedimentos no navegador
+
+1. Execute `bun run dev` e abra http://127.0.0.1:3000 com uma conta existente. A seção **Procedimentos** fica abaixo de Pacientes.
+2. Como administrador, confira o formulário, a pesquisa, os status e as ações de edição/inativação. Como funcionário, confira que somente o catálogo ativo e a pesquisa aparecem.
+3. Para testar gravações, configure previamente `DATABASE_URL` para um banco separado de desenvolvimento com o schema existente. Os botões de cadastro, edição e inativação gravam no banco configurado; não insira procedimentos fictícios no Neon da clínica.
+4. No banco de desenvolvimento, cadastre somente o nome e depois teste descrição e intervalo. Confira as mensagens de sucesso, a atualização da lista, os erros para nome vazio e intervalos zero, negativos ou fracionários.
+5. Edite um registro e salve; teste também **Cancelar edição**. Inative um ativo e confirme a ação. Ele deve continuar visível ao administrador como Inativo e desaparecer para funcionários. Editar um inativo deve preservar esse status.
+6. Confira pesquisa, lista vazia e paginação com mais de 50 resultados. Saia da conta e confirme que o catálogo e o formulário são limpos. Sem sessão, a API retorna 401; funcionário tentando escrita diretamente recebe 403.
+
+Execute `bun test`, `bun run typecheck` e `git diff --check` para validar sem acessar o banco. A verificação visual manual da Fase 6 no navegador deve ser realizada separadamente.

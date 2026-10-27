@@ -21,6 +21,7 @@ describe("Servidor HTTP", () => {
   test.each([
     ["/css/styles.css", "text/css"],
     ["/js/app.js", "javascript"],
+    ["/js/procedimentos.js", "javascript"],
   ])("serve o arquivo %s", async (path, type) => {
     const response = await request(path);
     expect(response.status).toBe(200);
