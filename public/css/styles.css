@@ -53,3 +53,27 @@ textarea:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
 .procedure-actions button { margin-right: .5rem; }
 #procedimentos-lista td { white-space: pre-wrap; }
 #procedimento-message, #procedimentos-lista-message { min-height: 1.5em; }
+
+select { font: inherit; padding: .75rem 1rem; border: 1px solid #a99aa4; border-radius: .5rem; width: 100%; max-width: 28rem; background: white; }
+select:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
+.checkbox-label { display: flex; align-items: center; gap: .5rem; }
+.checkbox-label input { width: auto; }
+#atendimentos-area > label { display: block; margin-top: 1rem; }
+
+.session-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.main-nav { display: flex; gap: .5rem; flex-wrap: wrap; padding: .75rem 0 1.25rem; border-bottom: 1px solid #e8dde2; }
+.main-nav button { background: #f3edf0; color: #5d3b4d; margin: 0; border: 1px solid transparent; }
+.main-nav button[aria-current="page"] { background: #785064; color: white; border-color: #5d3b4d; box-shadow: 0 2px 4px #382e351a; font-weight: 700; }
+.main-nav button:hover { border-color: #785064; }
+#home-area .screen { border-top: 0; margin-top: 1.5rem; }
+.shortcuts { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0; }
+.secondary { color: #684255; background: #f3edf0; border: 1px solid #d7c4ce; }
+.screen h2 { scroll-margin-top: 1rem; }
+.screen h2:focus { outline: none; }
+.screen h2:focus-visible { outline: 2px solid #b686a0; outline-offset: .3rem; }
+#paciente-editor, #procedimento-editor, #atendimento-editor { padding: 1rem; margin-top: 1rem; border: 1px solid #e8dde2; border-radius: .75rem; background: #fdfafb; }
+@media (max-width: 600px) {
+  .main-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .main-nav button, .shortcuts button { width: 100%; }
+  .shortcuts { display: grid; }
+}

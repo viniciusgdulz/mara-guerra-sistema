@@ -97,7 +97,7 @@ Não há cadastro público. Não coloque senhas em comandos, arquivos ou logs.
 Controllers futuros devem verificar sessão e `temPerfil()` antes de consultar dados de negócio.
 `temPerfil(usuario, ["administrador"])` permite somente administradores;
 `temPerfil(usuario, ["administrador", "funcionario"])` permite os dois perfis.
-As rotas de pacientes permitem cadastro e consulta para os dois perfis. Não há rota de histórico clínico.
+As rotas de pacientes permitem cadastro e consulta para os dois perfis. O histórico de atendimentos é exclusivo de administradores, conforme a Fase 7.
 
 Senhas usam Argon2id. Tokens aleatórios de 32 bytes ficam somente no cookie HttpOnly,
 SameSite=Strict; o banco armazena seu SHA-256. Não se usa localStorage.
@@ -147,7 +147,7 @@ e `tests/pacientes.test.ts`. Os testes usam SQL simulado e não acessam o Neon.
 ### Testar no navegador
 
 1. Com o `.env` já configurado e uma conta existente, execute `bun run dev` e abra http://127.0.0.1:3000.
-2. Entre como administrador ou funcionário. A seção Pacientes aparece após o login e carrega a primeira página.
+2. Entre como administrador ou funcionário e abra **Pacientes** no menu. A listagem e a pesquisa aparecem primeiro; **Novo paciente** abre o cadastro.
 3. Confira a busca por nome, a mensagem de lista vazia e a navegação quando houver mais de 50 resultados.
 4. Para testar a gravação, use um banco separado de desenvolvimento com o schema existente. Configure seu `DATABASE_URL` antes de iniciar o servidor. Clicar em **Cadastrar paciente grava no banco configurado**; não use dados fictícios no Neon da clínica.
 5. No banco de desenvolvimento, cadastre somente nome e telefone; depois teste os opcionais. Confira a confirmação e a atualização da lista. Nome vazio, telefone inválido, e-mail inválido ou nascimento futuro devem ser recusados com mensagem clara.
@@ -175,11 +175,65 @@ Implementação em `src/services/procedimentos.service.ts`, `src/controllers/pro
 
 ### Testar procedimentos no navegador
 
-1. Execute `bun run dev` e abra http://127.0.0.1:3000 com uma conta existente. A seção **Procedimentos** fica abaixo de Pacientes.
-2. Como administrador, confira o formulário, a pesquisa, os status e as ações de edição/inativação. Como funcionário, confira que somente o catálogo ativo e a pesquisa aparecem.
+1. Execute `bun run dev` e abra http://127.0.0.1:3000 com uma conta existente. Abra **Procedimentos** no menu.
+2. Como administrador, confira a pesquisa, os status e as ações de edição/inativação; **Novo procedimento** abre o formulário. Como funcionário, confira que somente o catálogo ativo e a pesquisa aparecem.
 3. Para testar gravações, configure previamente `DATABASE_URL` para um banco separado de desenvolvimento com o schema existente. Os botões de cadastro, edição e inativação gravam no banco configurado; não insira procedimentos fictícios no Neon da clínica.
 4. No banco de desenvolvimento, cadastre somente o nome e depois teste descrição e intervalo. Confira as mensagens de sucesso, a atualização da lista, os erros para nome vazio e intervalos zero, negativos ou fracionários.
 5. Edite um registro e salve; teste também **Cancelar edição**. Inative um ativo e confirme a ação. Ele deve continuar visível ao administrador como Inativo e desaparecer para funcionários. Editar um inativo deve preservar esse status.
 6. Confira pesquisa, lista vazia e paginação com mais de 50 resultados. Saia da conta e confirme que o catálogo e o formulário são limpos. Sem sessão, a API retorna 401; funcionário tentando escrita diretamente recebe 403.
 
 Execute `bun test`, `bun run typecheck` e `git diff --check` para validar sem acessar o banco. A verificação visual manual da Fase 6 no navegador deve ser realizada separadamente.
+
+## Fase 7 — Histórico de atendimentos
+
+Reutiliza `atendimentos`, conferida em `sql/001_create_tables.sql`, sem mudanças no schema. A implementação e os testes não conectam ao Neon nem inserem dados nele.
+
+Somente administradores podem registrar, consultar ou ajustar o retorno de atendimentos. A autorização ocorre no backend antes de acessar dados clínicos, incluindo subcaminhos e o catálogo de seleção. Funcionários continuam podendo consultar pacientes e procedimentos pelas rotas cadastrais, sem receber histórico clínico.
+
+- `POST /api/atendimentos`: recebe `paciente_id`, `procedimento_id`, `data_atendimento` (`AAAA-MM-DD`) e, opcionalmente, `data_retorno_sugerida`. Retorna 201 com `atendimento`.
+- Sem o campo de retorno, calcula a data somando o intervalo atual do procedimento à data do atendimento. Sem intervalo configurado, salva NULL. O cálculo usa dias de calendário em UTC, sem deslocamento por horário de verão.
+- O retorno pode ser informado manualmente, inclusive para procedimentos sem intervalo. `null` remove a sugestão; string vazia não é aceita na API. A interface converte o campo manual vazio em null.
+- `PATCH /api/atendimentos/:id/retorno`: recebe somente `data_retorno_sugerida` (data ou null) e permite ajustar registros existentes, inclusive de procedimentos posteriormente inativados. Retorna 200 ou 404.
+- `GET /api/atendimentos?paciente_id=UUID&pagina=1`: retorna `atendimentos`, `pagina`, `temMais`; até 50 por página, do mais antigo ao mais recente, com desempate por id. Paciente inexistente retorna 404; paciente sem registros retorna lista vazia.
+- `GET /api/atendimentos/procedimentos?nome=texto&pagina=1`: catálogo paginado de seleção, sempre limitado a procedimentos ativos, mesmo para administradores. A seleção de pacientes reutiliza a busca paginada existente.
+
+Datas devem existir e estar entre os anos 0001 e 9999. Atendimento não pode ser futuro (dia de São Paulo); retorno não pode ser anterior ao atendimento. Intervalo automático que ultrapasse o ano 9999 retorna erro claro e permite escolha manual. UUIDs e campos extras são validados. Escritas exigem JSON, corpo de até 4 KiB e origem autorizada. SQL parametrizado e respostas com `Cache-Control: no-store` preservam as proteções existentes.
+
+O registro usa transação com bloqueios de leitura do paciente e procedimento: recusa paciente ausente ou procedimento inativo/ausente e impede alteração/inativação concorrente do procedimento até concluir a inserção. O ajuste de retorno bloqueia o atendimento enquanto valida e atualiza somente essa data. Não há edição de paciente/procedimento/data do atendimento, exclusão ou envio de notificações nesta fase.
+
+O histórico consulta procedimentos ativos e inativos, sem recalcular o retorno salvo ao alterar intervalos do catálogo. O nome exibido é o nome atual do procedimento; o schema existente não possui cópia histórica do nome. A interface limpa os dados ao sair ou perder o perfil administrador e descarta respostas atrasadas. Não consulta o histórico periodicamente.
+
+### Validar a Fase 7 no navegador
+
+1. Execute `bun run dev`, abra http://127.0.0.1:3000 e entre como administrador. Abra **Atendimentos** no menu para consultar o histórico; **Registrar atendimento** abre o formulário.
+2. Pesquise um paciente, selecione-o e confira o histórico ou a mensagem de lista vazia. Use a paginação das opções para encontrar registros além da primeira página.
+3. Pesquise um procedimento ativo, selecione a data e confira a prévia do retorno. Sem intervalo, deve aparecer a indicação de retorno não configurado. **Ajustar retorno manualmente** permite uma data própria ou nenhum retorno.
+4. Para testar registro, ajuste e inativação, use exclusivamente um banco separado de desenvolvimento com o schema existente, configurado em `DATABASE_URL` antes de iniciar o servidor. Esses botões gravam no banco configurado; não faça testes de escrita no Neon da clínica.
+5. No banco de desenvolvimento, registre e confira a confirmação com o retorno efetivamente calculado no backend. Teste mudança de mês/ano, retorno manual e recusa de datas inválidas, futuras ou retorno anterior ao atendimento.
+6. Use **Ajustar retorno** em uma linha do histórico: informe `AAAA-MM-DD` ou deixe vazio para remover. Confira a atualização. Inative o procedimento no catálogo: ele deve sair da seleção de novos atendimentos, mas permanecer no histórico anterior.
+7. Entre como funcionário: a seção deve desaparecer. Uma chamada direta a `/api/atendimentos?paciente_id=UUID` deve retornar 403; sem sessão, 401. Saia da conta e confira que dados e seleções foram limpos.
+
+Execute `bun test`, `bun run typecheck` e `git diff --check`. Os testes novos usam transações SQL simuladas e uma interface DOM simulada para verificar a limpeza de dados e o descarte de respostas após logout ou mudança de perfil. A validação manual em navegador é separada.
+
+## Navegação da interface
+
+Após o login, o sistema abre **Início**, com o nome do usuário e os atalhos **Novo paciente** e **Consultar pacientes**. Administradores também veem **Registrar atendimento** e a opção **Atendimentos** no menu.
+
+O menu alterna uma tela por vez, sem recarregar a página ou fazer novas requisições somente pela troca de tela. O item ativo usa destaque visual e `aria-current`. Botões nativos permitem navegação por Tab e acionamento por Enter/Espaço. Ao mudar de tela, o foco vai para o título; ao abrir um formulário, para seu primeiro campo. No celular, o menu se organiza em duas colunas.
+
+- **Pacientes:** abre pesquisa e lista. **Novo paciente** ou o atalho inicial abre o cadastro. Cancelar limpa os campos e retorna à lista. Cadastro confirmado fecha o formulário, atualiza a lista e mantém a mensagem de sucesso; erro mantém o formulário disponível.
+- **Procedimentos:** abre o catálogo. Administradores podem abrir cadastro ou edição; cancelar e salvar retornam à consulta. Funcionários continuam apenas com o catálogo ativo. Inativação continua na listagem com confirmação.
+- **Atendimentos:** abre consulta e seleção de paciente. O registro só aparece após **Registrar atendimento**. **Voltar ao histórico** mantém paciente, pesquisa, página do histórico e rascunho do registro. Salvar fecha o registro e atualiza o histórico. A seleção de paciente fica disponível também durante o cadastro.
+
+Ao trocar de tela pelo menu, os editores são fechados e as consultas preservadas. A revalidação da sessão ao retornar à janela mantém a tela atual. Logout limpa os dados e o próximo login volta a Início. A navegação não modifica regras do backend, cookies, prazos de sessão ou proteção de origem.
+
+Para validar no navegador, execute `bun run dev` e abra http://127.0.0.1:3000:
+
+1. Entre nos dois perfis e confira o menu, os atalhos e uma única tela visível por vez.
+2. Em Pacientes, abra e cancele o cadastro; repita pelo atalho de Início. Em Procedimentos, como administrador, abra e cancele o cadastro e a edição.
+3. Em Atendimentos, selecione um paciente, abra o registro e volte ao histórico; confirme que a seleção e a consulta permanecem. Alterne entre telas e retorne à janela para conferir que nenhum formulário abre sozinho.
+4. Confira mensagens de erro/sucesso e retorno à consulta após salvar somente em banco separado de desenvolvimento. Não teste escritas no Neon da clínica.
+5. Use Tab, Enter e Espaço para navegar. Reduza a janela à largura de celular e confira menu, botões, campos e rolagem das tabelas.
+6. Como funcionário, confirme a ausência de gerenciamento de procedimentos e do menu/atalho Atendimentos. As restrições também continuam verificadas nas APIs.
+
+`tests/navigation-ui.test.ts` carrega o HTML e os quatro scripts com DOM e API simulados para testar a integração sem banco ou rede. Execute `bun test`, `bun run typecheck` e `git diff --check`; a validação visual manual é separada.

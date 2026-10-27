@@ -19,14 +19,15 @@ function resetProcedureEditor() {
   procedureForm.reset();
   document.getElementById("procedimento-form-title").textContent = "Novo procedimento";
   procedureSave.textContent = "Cadastrar procedimento";
-  procedureCancel.hidden = true;
+  procedureCancel.hidden = false;
+  showEditor("procedimentos", false, false);
 }
 
 function setupProcedures(usuario) {
   const changed = procedureUser?.id !== usuario?.id || procedureUser?.perfil !== usuario?.perfil;
   procedureUser = usuario;
   const admin = usuario?.perfil === "administrador";
-  document.getElementById("procedimento-editor").hidden = !admin;
+  document.getElementById("novo-procedimento").hidden = !admin || !document.getElementById("procedimento-editor").hidden;
   document.getElementById("procedimentos-actions").hidden = !admin;
   document.getElementById("procedimentos-access").textContent = admin ? "Gerencie procedimentos ativos e inativos. A inativação preserva os registros existentes." : "Catálogo de procedimentos ativos para consulta.";
   if (!usuario || changed) {
@@ -103,7 +104,7 @@ async function loadProcedures(page) {
           procedureSave.textContent = "Salvar alterações";
           procedureCancel.hidden = false;
           procedureMessage.textContent = "";
-          document.getElementById("procedimento-nome").focus();
+          showEditor("procedimentos", true);
         }));
         if (p.ativo) actions.append(procedureButton("Inativar", () => deactivateProcedure(p)));
         row.append(actions);
@@ -158,6 +159,7 @@ procedureForm.addEventListener("submit", async event => {
     if (!data || session !== procedureSession) return;
     resetProcedureEditor();
     procedureMessage.textContent = id ? "Procedimento atualizado com sucesso." : "Procedimento cadastrado com sucesso.";
+    showEditor("procedimentos", false, activeScreen === "procedimentos");
     if (!id) {
       procedureSearch = "";
       document.getElementById("procedimentos-busca").value = "";
@@ -167,7 +169,10 @@ procedureForm.addEventListener("submit", async event => {
     if (session === procedureSession) procedureMessage.textContent = `${error.message} Consulte o catálogo antes de repetir o envio.`;
   } finally { if (session === procedureSession) setProcedureBusy(false); }
 });
-procedureCancel.addEventListener("click", () => { resetProcedureEditor(); procedureMessage.textContent = "Edição cancelada."; });
+procedureCancel.addEventListener("click", () => {
+  resetProcedureEditor(); procedureMessage.textContent = "Edição cancelada.";
+  showEditor("procedimentos", false);
+});
 document.getElementById("procedimentos-pesquisa").addEventListener("submit", event => {
   event.preventDefault();
   procedureSearch = document.getElementById("procedimentos-busca").value.trim();

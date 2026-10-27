@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mara Guerra Estética Avançada — Sistema de Gestão</title>
     <link rel="stylesheet" href="/css/styles.css" />
+    <script src="/js/navigation.js" defer></script>
     <script src="/js/procedimentos.js" defer></script>
+    <script src="/js/atendimentos.js" defer></script>
     <script src="/js/app.js" defer></script>
   </head>
   <body>
@@ -23,13 +25,30 @@
           <button type="submit" id="entrar">Entrar</button>
         </form>
       </section>
-      <section id="home-area" hidden aria-labelledby="home-title">
-        <h2 id="home-title">Bem-vindo(a), <span id="user-name"></span></h2>
-        <p>Perfil: <strong id="user-role"></strong></p>
-        <p>Você está conectado ao sistema da clínica.</p>
-        <button type="button" id="sair">Sair</button>
-        <section aria-labelledby="pacientes-title">
-          <h2 id="pacientes-title">Pacientes</h2>
+      <section id="home-area" hidden aria-label="Sistema da clínica">
+        <div class="session-bar">
+          <p>Perfil: <strong id="user-role"></strong></p>
+          <button type="button" id="sair" class="secondary">Sair</button>
+        </div>
+        <nav class="main-nav" aria-label="Navegação principal">
+          <button id="nav-inicio" type="button" data-screen="inicio" aria-controls="inicio-area" aria-current="page">Início</button>
+          <button id="nav-pacientes" type="button" data-screen="pacientes" aria-controls="pacientes-area">Pacientes</button>
+          <button id="nav-procedimentos" type="button" data-screen="procedimentos" aria-controls="procedimentos-area">Procedimentos</button>
+          <button id="nav-atendimentos" type="button" data-screen="atendimentos" aria-controls="atendimentos-area" hidden>Atendimentos</button>
+        </nav>
+        <section id="inicio-area" class="screen" aria-labelledby="home-title">
+          <h2 id="home-title" tabindex="-1">Bem-vindo(a), <span id="user-name"></span></h2>
+          <p>Selecione uma opção para começar o trabalho na clínica.</p>
+          <div class="shortcuts">
+            <button id="atalho-novo-paciente" type="button">Novo paciente</button>
+            <button id="atalho-consultar-pacientes" type="button" class="secondary">Consultar pacientes</button>
+            <button id="atalho-atendimento" type="button" hidden>Registrar atendimento</button>
+          </div>
+        </section>
+        <section id="pacientes-area" class="screen" hidden aria-labelledby="pacientes-title">
+          <h2 id="pacientes-title" tabindex="-1">Pacientes</h2>
+          <button id="novo-paciente" type="button" aria-controls="paciente-editor" aria-expanded="false">Novo paciente</button>
+          <div id="paciente-editor" hidden>
           <h3>Novo paciente</h3>
           <p>Nome e telefone são obrigatórios.</p>
           <form id="paciente-form">
@@ -42,8 +61,11 @@
             <label for="paciente-nascimento">Data de nascimento (opcional)</label>
             <input id="paciente-nascimento" name="data_nascimento" type="date" />
             <button id="cadastrar-paciente" type="submit">Cadastrar paciente</button>
+            <button id="cancelar-paciente" type="button" class="secondary">Cancelar e voltar à listagem</button>
           </form>
+          </div>
           <p id="paciente-message" role="status" aria-live="polite"></p>
+          <div id="pacientes-consulta">
           <h3>Pacientes cadastrados</h3>
           <form id="pesquisa-form" role="search">
             <label for="pesquisa-nome">Pesquisar pelo nome</label>
@@ -63,10 +85,12 @@
             <span id="pagina-atual"></span>
             <button type="button" id="pagina-proxima" disabled>Próxima</button>
           </div>
+          </div>
         </section>
-        <section aria-labelledby="procedimentos-title">
-          <h2 id="procedimentos-title">Procedimentos</h2>
+        <section id="procedimentos-area" class="screen" hidden aria-labelledby="procedimentos-title">
+          <h2 id="procedimentos-title" tabindex="-1">Procedimentos</h2>
           <p id="procedimentos-access"></p>
+          <button id="novo-procedimento" type="button" aria-controls="procedimento-editor" aria-expanded="false" hidden>Novo procedimento</button>
           <div id="procedimento-editor" hidden>
             <h3 id="procedimento-form-title">Novo procedimento</h3>
             <form id="procedimento-form">
@@ -77,10 +101,11 @@
               <label for="procedimento-intervalo">Retorno sugerido em dias (opcional)</label>
               <input id="procedimento-intervalo" name="intervalo_retorno_dias" type="number" min="1" max="2147483647" step="1" />
               <button id="salvar-procedimento" type="submit">Cadastrar procedimento</button>
-              <button id="cancelar-procedimento" type="button" hidden>Cancelar edição</button>
+              <button id="cancelar-procedimento" type="button" class="secondary">Cancelar e voltar à listagem</button>
             </form>
           </div>
           <p id="procedimento-message" role="status" aria-live="polite"></p>
+          <div id="procedimentos-consulta">
           <form id="procedimentos-pesquisa" role="search">
             <label for="procedimentos-busca">Pesquisar procedimentos por nome</label>
             <input id="procedimentos-busca" type="search" maxlength="150" />
@@ -98,6 +123,67 @@
             <button type="button" id="procedimentos-anterior" disabled>Anterior</button>
             <span id="procedimentos-pagina"></span>
             <button type="button" id="procedimentos-proxima" disabled>Próxima</button>
+          </div>
+          </div>
+        </section>
+        <section id="atendimentos-area" class="screen" hidden aria-labelledby="atendimentos-title">
+          <h2 id="atendimentos-title" tabindex="-1">Atendimentos</h2>
+          <p>Acesso exclusivo de administradores. Selecione um paciente para registrar ou consultar atendimentos.</p>
+          <form id="atendimento-paciente-pesquisa" role="search">
+            <label for="atendimento-paciente-busca">Pesquisar paciente pelo nome</label>
+            <input id="atendimento-paciente-busca" type="search" maxlength="150" />
+            <button type="submit">Pesquisar pacientes</button>
+          </form>
+          <label for="atendimento-paciente">Paciente</label>
+          <select id="atendimento-paciente"><option value="">Selecione um paciente</option></select>
+          <div class="pagination">
+            <button id="atendimento-paciente-anterior" type="button" disabled>Pacientes anteriores</button>
+            <button id="atendimento-paciente-proxima" type="button" disabled>Próximos pacientes</button>
+          </div>
+          <p id="atendimento-paciente-message" role="status" aria-live="polite"></p>
+          <button id="novo-atendimento" type="button" aria-controls="atendimento-editor" aria-expanded="false">Registrar atendimento</button>
+          <div id="atendimento-editor" hidden>
+          <h3>Novo atendimento</h3>
+          <form id="atendimento-procedimento-pesquisa" role="search">
+            <label for="atendimento-procedimento-busca">Pesquisar procedimento ativo</label>
+            <input id="atendimento-procedimento-busca" type="search" maxlength="150" />
+            <button type="submit">Pesquisar procedimentos ativos</button>
+          </form>
+          <div class="pagination">
+            <button id="atendimento-procedimento-anterior" type="button" disabled>Procedimentos anteriores</button>
+            <button id="atendimento-procedimento-proxima" type="button" disabled>Próximos procedimentos</button>
+          </div>
+          <p id="atendimento-procedimento-message" role="status" aria-live="polite"></p>
+          <form id="atendimento-form">
+            <label for="atendimento-procedimento">Procedimento ativo *</label>
+            <select id="atendimento-procedimento" required><option value="">Selecione um procedimento</option></select>
+            <label for="atendimento-data">Data do atendimento *</label>
+            <input id="atendimento-data" type="date" required />
+            <p id="atendimento-previsao" role="status" aria-live="polite"></p>
+            <label class="checkbox-label"><input id="atendimento-retorno-manual" type="checkbox" /> Ajustar retorno manualmente</label>
+            <label for="atendimento-retorno">Data sugerida de retorno (vazia para não sugerir)</label>
+            <input id="atendimento-retorno" type="date" disabled />
+            <button id="atendimento-salvar" type="submit" disabled>Registrar atendimento</button>
+            <button id="cancelar-atendimento" type="button" class="secondary">Voltar ao histórico</button>
+          </form>
+          </div>
+          <p id="atendimento-message" role="status" aria-live="polite"></p>
+          <div id="atendimentos-consulta">
+          <h3 id="atendimento-historico-title">Histórico do paciente</h3>
+          <button id="atendimento-atualizar" type="button" disabled>Atualizar histórico</button>
+          <p id="atendimento-historico-message" role="status" aria-live="polite"></p>
+          <div class="table-scroll">
+            <table>
+              <caption>Atendimentos do mais antigo ao mais recente</caption>
+              <thead><tr><th scope="col">Data</th><th scope="col">Procedimento</th><th scope="col">Retorno sugerido</th><th scope="col">Ações</th></tr></thead>
+              <tbody id="atendimento-historico"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button id="atendimento-historico-anterior" type="button" disabled>Anterior</button>
+            <span id="atendimento-historico-pagina"></span>
+            <button id="atendimento-historico-proxima" type="button" disabled>Próxima</button>
+          </div>
           </div>
         </section>
       </section>

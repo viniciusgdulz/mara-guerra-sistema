@@ -27,6 +27,8 @@ function showUser(usuario) {
   document.getElementById("user-role").textContent = usuario?.perfil === "administrador" ? "Administrador" : "Funcionário";
   password.value = "";
   setupProcedures(usuario);
+  setupAppointments(usuario);
+  setupNavigation(usuario);
   if (!usuario) clearPatients();
   else if (entrando) loadPatients(1);
 }
@@ -151,6 +153,7 @@ patientForm.addEventListener("submit", async event => {
     const data = await response.json();
     if (!response.ok) { patientMessage.textContent = data.error ?? "Não foi possível cadastrar o paciente."; return; }
     patientForm.reset();
+    showEditor("pacientes", false, activeScreen === "pacientes");
     patientMessage.textContent = "Paciente cadastrado com sucesso.";
     currentSearch = "";
     document.getElementById("pesquisa-nome").value = "";
