@@ -20,11 +20,14 @@ const message = document.getElementById("login-message");
 const password = document.getElementById("senha");
 
 function showUser(usuario) {
+  const entrando = homeArea.hidden && Boolean(usuario);
   loginArea.hidden = Boolean(usuario);
   homeArea.hidden = !usuario;
   document.getElementById("user-name").textContent = usuario?.nome ?? "";
   document.getElementById("user-role").textContent = usuario?.perfil === "administrador" ? "Administrador" : "Funcionário";
   password.value = "";
+  if (!usuario) clearPatients();
+  else if (entrando) loadPatients(1);
 }
 
 async function loadUser() {
@@ -66,3 +69,100 @@ document.getElementById("sair").addEventListener("click", async () => {
 // Não consulta periodicamente: isso manteria a sessão ativa sem interação humana.
 loadUser();
 window.addEventListener("focus", loadUser);
+
+const patientForm = document.getElementById("paciente-form");
+const patientMessage = document.getElementById("paciente-message");
+const listMessage = document.getElementById("lista-message");
+const patientList = document.getElementById("pacientes-lista");
+const previousPage = document.getElementById("pagina-anterior");
+const nextPage = document.getElementById("pagina-proxima");
+let currentPage = 1;
+let currentSearch = "";
+let listVersion = 0;
+let sessionVersion = 0;
+
+function clearPatients() {
+  sessionVersion++;
+  listVersion++;
+  patientForm.reset();
+  document.getElementById("pesquisa-form").reset();
+  patientList.replaceChildren();
+  patientMessage.textContent = "";
+  listMessage.textContent = "";
+  document.getElementById("pagina-atual").textContent = "";
+  currentSearch = "";
+  currentPage = 1;
+  previousPage.disabled = nextPage.disabled = true;
+}
+
+function expiredSession(response) {
+  if (response.status !== 401) return false;
+  showUser(null);
+  message.textContent = "Sua sessão expirou. Entre novamente.";
+  return true;
+}
+
+async function loadPatients(page) {
+  const version = ++listVersion;
+  previousPage.disabled = nextPage.disabled = true;
+  patientList.replaceChildren();
+  listMessage.textContent = "Carregando pacientes…";
+  try {
+    const params = new URLSearchParams({ nome: currentSearch, pagina: String(page) });
+    const response = await fetch(`/api/pacientes?${params}`, { cache: "no-store" });
+    if (version !== listVersion || homeArea.hidden) return;
+    if (expiredSession(response)) return;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? "Não foi possível listar os pacientes.");
+    for (const paciente of data.pacientes) {
+      const row = document.createElement("tr");
+      const birth = paciente.data_nascimento ? paciente.data_nascimento.split("-").reverse().join("/") : "—";
+      for (const value of [paciente.nome, paciente.telefone, paciente.email ?? "—", birth]) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(cell);
+      }
+      patientList.append(row);
+    }
+    currentPage = page;
+    document.getElementById("pagina-atual").textContent = `Página ${page}`;
+    previousPage.disabled = page === 1;
+    nextPage.disabled = !data.temMais;
+    listMessage.textContent = data.pacientes.length ? `${data.pacientes.length} paciente(s) nesta página.` : "Nenhum paciente encontrado.";
+  } catch (error) {
+    if (version === listVersion) listMessage.textContent = error.message || "Não foi possível conectar ao servidor. Tente novamente.";
+  }
+}
+
+patientForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const version = sessionVersion;
+  const button = document.getElementById("cadastrar-paciente");
+  button.disabled = true;
+  patientMessage.textContent = "Cadastrando paciente…";
+  try {
+    const response = await fetch("/api/pacientes", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(new FormData(patientForm))),
+    });
+    if (version !== sessionVersion || homeArea.hidden) return;
+    if (expiredSession(response)) return;
+    const data = await response.json();
+    if (!response.ok) { patientMessage.textContent = data.error ?? "Não foi possível cadastrar o paciente."; return; }
+    patientForm.reset();
+    patientMessage.textContent = "Paciente cadastrado com sucesso.";
+    currentSearch = "";
+    document.getElementById("pesquisa-nome").value = "";
+    await loadPatients(1);
+  } catch {
+    if (version === sessionVersion) patientMessage.textContent = "Não foi possível confirmar o cadastro. Pesquise o paciente antes de tentar novamente.";
+  } finally { button.disabled = false; }
+});
+
+document.getElementById("pesquisa-form").addEventListener("submit", event => {
+  event.preventDefault();
+  currentSearch = document.getElementById("pesquisa-nome").value.trim();
+  loadPatients(1);
+});
+previousPage.addEventListener("click", () => loadPatients(currentPage - 1));
+nextPage.addEventListener("click", () => loadPatients(currentPage + 1));

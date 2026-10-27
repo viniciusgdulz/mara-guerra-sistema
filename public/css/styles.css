@@ -32,3 +32,17 @@ button:disabled { opacity: .6; cursor: wait; }
 input:focus-visible, button:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
 #login-message { color: #76334b; min-height: 1.5em; }
 [hidden] { display: none !important; }
+
+main { max-width: 64rem; }
+#home-area section { margin-top: 2rem; border-top: 1px solid #e8dde2; }
+#paciente-message, #lista-message { min-height: 1.5em; }
+.table-scroll { overflow-x: auto; margin-top: 1.5rem; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+caption { text-align: left; font-weight: 600; margin-bottom: .5rem; }
+th, td { padding: .75rem; border-bottom: 1px solid #e8dde2; overflow-wrap: anywhere; }
+th { background: #f3edf0; }
+.pagination { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+@media (max-width: 600px) {
+  body { padding: .5rem; }
+  th, td { min-width: 9rem; }
+}

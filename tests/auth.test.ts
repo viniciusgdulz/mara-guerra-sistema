@@ -173,7 +173,7 @@ describe("Rotas, cookies e permissões", () => {
   test("integração pública preserva health e protege admin sem abrir banco", async () => {
     expect((await handleRequest(requisicao("/api/auth/me"))).status).toBe(401);
     expect((await handleRequest(requisicao("/api/admin/usuarios"))).status).toBe(401);
-    expect((await handleRequest(requisicao("/api/pacientes"))).status).toBe(404);
+    expect((await handleRequest(requisicao("/api/pacientes"))).status).toBe(401);
     expect((await handleRequest(requisicao("/api/health"))).status).toBe(200);
   });
   test("recusa método, JSON inválido e corpo grande antes de abrir banco", async () => {

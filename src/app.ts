@@ -5,9 +5,11 @@ import { criarAuthController } from "./controllers/auth.controller";
 import { isAuthRoute } from "./routes/auth.routes";
 import { createConnection } from "./db/connection";
 import type { SQL } from "bun";
+import { criarPacientesController } from "./controllers/pacientes.controller";
 
 let db: SQL | undefined;
 const auth = criarAuthController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
+const pacientes = criarPacientesController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
 
 export async function closeConnection(): Promise<void> {
   if (db) await db.close({ timeout: 5 });
@@ -31,6 +33,7 @@ export async function handleRequest(request: Request): Promise<Response> {
 
 async function routeRequest(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
+  if (pathname === "/api/pacientes" || pathname.startsWith("/api/pacientes/")) return pacientes(request);
   if (isAuthRoute(pathname) || pathname === "/api/admin" || pathname.startsWith("/api/admin/")) {
     return auth(request);
   }

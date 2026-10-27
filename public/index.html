@@ -27,6 +27,42 @@
         <p>Perfil: <strong id="user-role"></strong></p>
         <p>Você está conectado ao sistema da clínica.</p>
         <button type="button" id="sair">Sair</button>
+        <section aria-labelledby="pacientes-title">
+          <h2 id="pacientes-title">Pacientes</h2>
+          <h3>Novo paciente</h3>
+          <p>Nome e telefone são obrigatórios.</p>
+          <form id="paciente-form">
+            <label for="paciente-nome">Nome *</label>
+            <input id="paciente-nome" name="nome" maxlength="150" autocomplete="off" required />
+            <label for="paciente-telefone">Telefone *</label>
+            <input id="paciente-telefone" name="telefone" type="tel" maxlength="20" autocomplete="off" required />
+            <label for="paciente-email">E-mail (opcional)</label>
+            <input id="paciente-email" name="email" type="email" maxlength="254" autocomplete="off" />
+            <label for="paciente-nascimento">Data de nascimento (opcional)</label>
+            <input id="paciente-nascimento" name="data_nascimento" type="date" />
+            <button id="cadastrar-paciente" type="submit">Cadastrar paciente</button>
+          </form>
+          <p id="paciente-message" role="status" aria-live="polite"></p>
+          <h3>Pacientes cadastrados</h3>
+          <form id="pesquisa-form" role="search">
+            <label for="pesquisa-nome">Pesquisar pelo nome</label>
+            <input id="pesquisa-nome" type="search" maxlength="150" placeholder="Digite um nome ou liste todos" />
+            <button type="submit">Pesquisar / atualizar lista</button>
+          </form>
+          <p id="lista-message" role="status" aria-live="polite"></p>
+          <div class="table-scroll">
+            <table>
+              <caption>Dados cadastrais dos pacientes</caption>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Telefone</th><th scope="col">E-mail</th><th scope="col">Nascimento</th></tr></thead>
+              <tbody id="pacientes-lista"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <button type="button" id="pagina-anterior" disabled>Anterior</button>
+            <span id="pagina-atual"></span>
+            <button type="button" id="pagina-proxima" disabled>Próxima</button>
+          </div>
+        </section>
       </section>
       <p id="login-message" role="status" aria-live="polite"></p>
       <p class="status" id="server-status" role="status">Verificando o servidor…</p>

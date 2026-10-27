@@ -23,7 +23,7 @@ Para iniciar sem observar alterações, use `bun start`.
 - `src/server.ts`: validação de porta e inicialização com `Bun.serve()`.
 - `public/index.html`: página inicial em português.
 - `public/css/styles.css`: estilos responsivos.
-- `public/js/app.js`: consulta ao status do servidor.
+- `public/js/app.js`: autenticação, cadastro, pesquisa e listagem de pacientes.
 - `tests/server.test.ts`: testes HTTP com o executor nativo do Bun e porta temporária.
 - `package.json`: scripts e dependências apenas de desenvolvimento.
 - `bun.lock`: versões resolvidas das dependências.
@@ -56,7 +56,7 @@ Os arquivos SQL versionados são revisados e executados separadamente; o servido
 
 A autenticação utiliza Argon2id nativo via `Bun.password`, selecionando explicitamente o algoritmo `argon2id`, sem biblioteca de hash adicional.
 
-Não há cadastro de pacientes, integração com WhatsApp nem dados reais de pacientes.
+O cadastro de pacientes está descrito na Fase 5 abaixo. Não há integração com WhatsApp.
 
 ## Autenticação e execução local
 
@@ -97,7 +97,7 @@ Não há cadastro público. Não coloque senhas em comandos, arquivos ou logs.
 Controllers futuros devem verificar sessão e `temPerfil()` antes de consultar dados de negócio.
 `temPerfil(usuario, ["administrador"])` permite somente administradores;
 `temPerfil(usuario, ["administrador", "funcionario"])` permite os dois perfis.
-O catálogo atual não disponibiliza nenhuma rota de pacientes ou histórico clínico.
+As rotas de pacientes permitem cadastro e consulta para os dois perfis. Não há rota de histórico clínico.
 
 Senhas usam Argon2id. Tokens aleatórios de 32 bytes ficam somente no cookie HttpOnly,
 SameSite=Strict; o banco armazena seu SHA-256. Não se usa localStorage.
@@ -125,3 +125,32 @@ locais do Bun. Eles não criam contas nem sessões no Neon. Execute `bun test` e
 `bun run typecheck` para verificar o projeto.
 
 Referências oficiais: [servidor HTTP do Bun](https://bun.sh/docs/runtime/http/server) e [Bun.password](https://bun.sh/reference/bun/password).
+
+## Fase 5 — Cadastro de pacientes
+
+Utiliza a tabela `pacientes` definida em `sql/001_create_tables.sql`, sem alterar o schema.
+O schema foi conferido no arquivo versionado; esta implementação não consultou nem gravou no Neon.
+
+- `POST /api/pacientes`: nome e telefone obrigatórios; e-mail e data de nascimento opcionais. Retorna 201.
+- `GET /api/pacientes?nome=Maria&pagina=1`: pesquisa parcial por nome, sem distinguir maiúsculas e minúsculas. Nome vazio lista todos.
+- A resposta da consulta contém `pacientes`, `pagina` e `temMais`, com até 50 pacientes por página, ordenados por nome e id.
+- Ambas exigem sessão válida e perfil `administrador` ou `funcionario`. O cadastro exige Origin autorizado, JSON e corpo de até 4 KiB.
+- Nome: 1–150 caracteres após remover espaços das extremidades. Telefone: 8–15 dígitos, até 20 caracteres, permitindo espaços, `+`, parênteses, ponto e hífen.
+- E-mail: até 254 caracteres, normalizado para minúsculas. Opcionais ausentes, nulos ou vazios são armazenados como NULL.
+- Nascimento: `AAAA-MM-DD`, data existente e não futura, considerando o dia de São Paulo.
+- SQL parametrizado, seleção explícita de dados cadastrais e respostas sem cache. Não retorna histórico clínico.
+- Não há edição, exclusão ou detecção de duplicidade nesta versão. Consentimento WhatsApp mantém os valores padrão do banco.
+
+Os arquivos principais são `src/services/pacientes.service.ts`, `src/controllers/pacientes.controller.ts`
+e `tests/pacientes.test.ts`. Os testes usam SQL simulado e não acessam o Neon.
+
+### Testar no navegador
+
+1. Com o `.env` já configurado e uma conta existente, execute `bun run dev` e abra http://127.0.0.1:3000.
+2. Entre como administrador ou funcionário. A seção Pacientes aparece após o login e carrega a primeira página.
+3. Confira a busca por nome, a mensagem de lista vazia e a navegação quando houver mais de 50 resultados.
+4. Para testar a gravação, use um banco separado de desenvolvimento com o schema existente. Configure seu `DATABASE_URL` antes de iniciar o servidor. Clicar em **Cadastrar paciente grava no banco configurado**; não use dados fictícios no Neon da clínica.
+5. No banco de desenvolvimento, cadastre somente nome e telefone; depois teste os opcionais. Confira a confirmação e a atualização da lista. Nome vazio, telefone inválido, e-mail inválido ou nascimento futuro devem ser recusados com mensagem clara.
+6. Saia da conta: formulário e lista são limpos. Sem sessão, chamadas à API retornam 401. Repita com o outro perfil para conferir acesso equivalente.
+
+Validação automatizada: `bun test` e `bun run typecheck`. Nenhum comando de migração ou de inserção no Neon é necessário para esses testes.
