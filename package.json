@@ -10,6 +10,7 @@
     "start": "bun src/server.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
+    "whatsapp:test": "bun --no-env-file scripts/whatsapp-manual-test.ts",
     "db:test": "bun --env-file=.env scripts/test-db.ts",
     "admin:create": "bun --env-file=.env scripts/create-admin.ts"
   },

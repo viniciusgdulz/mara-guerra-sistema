@@ -174,7 +174,8 @@ async function loadAgendaReturns(page) {
         const cell = document.createElement("td"); cell.textContent = value; row.append(cell);
       }
       const actions = document.createElement("td");
-      if (r.procedimento_ativo) actions.append(agendaButton("Agendar retorno", () => openAgendaEditor(null, r)));
+      if (r.retorno_agendado) actions.textContent = "Possível retorno já agendado. Confira a agenda antes de criar outro.";
+      else if (r.procedimento_ativo) actions.append(agendaButton("Agendar retorno", () => openAgendaEditor(null, r)));
       else actions.textContent = "Procedimento inativo: crie um novo agendamento com outro procedimento ativo.";
       row.append(actions); ag("retornos-lista").append(row);
     }

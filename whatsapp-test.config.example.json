@@ -1,0 +1,8 @@
+{
+  "accessToken": "SUBSTITUIR_LOCALMENTE",
+  "testPhoneNumberId": "SUBSTITUIR_PELO_ID_DO_NUMERO_DE_TESTE_META",
+  "graphApiVersion": "SUBSTITUIR_PELA_VERSAO_DO_PAINEL",
+  "authorizedRecipient": "SUBSTITUIR_PELO_SEU_NUMERO_COM_DDI_SEM_PONTUACAO",
+  "metaTestNumberConfirmed": false,
+  "personalRecipientVerifiedAndConsented": false
+}

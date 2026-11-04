@@ -97,11 +97,14 @@ export async function listarRetornos(db: SQL, inicio: string, fim: string, pagin
   validarData(inicio); validarData(fim);
   if (fim < inicio || Date.parse(fim) - Date.parse(inicio) > 366 * 86400000) throw new ErroAgenda("Selecione um período de até 366 dias, com fim igual ou posterior ao início.");
   const rows = await db`SELECT a.id AS sugestao_id, a.paciente_id, a.procedimento_id, a.data_retorno_sugerida::text AS data_retorno_sugerida,
-    p.nome AS paciente_nome, pr.nome AS procedimento_nome, pr.ativo AS procedimento_ativo
+    p.nome AS paciente_nome, pr.nome AS procedimento_nome, pr.ativo AS procedimento_ativo,
+    EXISTS (SELECT 1 FROM agendamentos r WHERE r.paciente_id = a.paciente_id AND r.procedimento_id = a.procedimento_id
+      AND r.status IN ('pendente', 'confirmado', 'realizado')
+      AND (r.data_hora AT TIME ZONE 'America/Sao_Paulo')::date BETWEEN a.data_retorno_sugerida AND a.data_retorno_sugerida + 30) AS retorno_agendado
     FROM atendimentos a JOIN pacientes p ON p.id = a.paciente_id JOIN procedimentos pr ON pr.id = a.procedimento_id
     WHERE a.data_retorno_sugerida BETWEEN ${inicio}::date AND ${fim}::date
     ORDER BY a.data_retorno_sugerida, a.id LIMIT 51 OFFSET ${(pagina - 1) * 50}`;
-  return rows.map((r: { sugestao_id: string; paciente_id: string; procedimento_id: string; data_retorno_sugerida: string; paciente_nome: string; procedimento_nome: string; procedimento_ativo: boolean }) => ({ sugestao_id: r.sugestao_id, paciente_id: r.paciente_id, procedimento_id: r.procedimento_id, data_retorno_sugerida: r.data_retorno_sugerida, paciente_nome: r.paciente_nome, procedimento_nome: r.procedimento_nome, procedimento_ativo: r.procedimento_ativo }));
+  return rows.map((r: { sugestao_id: string; paciente_id: string; procedimento_id: string; data_retorno_sugerida: string; paciente_nome: string; procedimento_nome: string; procedimento_ativo: boolean; retorno_agendado?: boolean }) => ({ sugestao_id: r.sugestao_id, paciente_id: r.paciente_id, procedimento_id: r.procedimento_id, data_retorno_sugerida: r.data_retorno_sugerida, paciente_nome: r.paciente_nome, procedimento_nome: r.procedimento_nome, procedimento_ativo: r.procedimento_ativo, retorno_agendado: r.retorno_agendado === true }));
 }
 export async function agendarRetorno(db: SQL, id: string, dados: unknown) {
   validarId(id);

@@ -29,6 +29,8 @@ function showUser(usuario) {
   setupProcedures(usuario);
   setupAppointments(usuario);
   setupAgenda(usuario);
+  setupConsentimento(usuario);
+  setupNotificacoes(usuario);
   setupNavigation(usuario);
   if (!usuario) clearPatients();
   else if (entrando) loadPatients(1);
@@ -126,6 +128,11 @@ async function loadPatients(page) {
         cell.textContent = value;
         row.append(cell);
       }
+      const actions = document.createElement("td");
+      const consent = document.createElement("button");
+      consent.type = "button"; consent.textContent = "Consentimento WhatsApp";
+      consent.addEventListener("click", () => openConsentimento(paciente));
+      actions.append(consent); row.append(actions);
       patientList.append(row);
     }
     currentPage = page;

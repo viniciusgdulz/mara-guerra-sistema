@@ -9,6 +9,9 @@ import { criarPacientesController } from "./controllers/pacientes.controller";
 import { criarProcedimentosController } from "./controllers/procedimentos.controller";
 import { criarAtendimentosController } from "./controllers/atendimentos.controller";
 import { criarAgendaController } from "./controllers/agenda.controller";
+import { criarConsentimentoController } from "./controllers/consentimento.controller";
+import { criarNotificacoesController } from "./controllers/notificacoes.controller";
+import { criarMetaWebhookController } from "./controllers/meta-webhook.controller";
 
 let db: SQL | undefined;
 const auth = criarAuthController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
@@ -16,6 +19,9 @@ const pacientes = criarPacientesController(() => db ??= createConnection(), Bun.
 const procedimentos = criarProcedimentosController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
 const atendimentos = criarAtendimentosController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
 const agenda = criarAgendaController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
+const consentimento = criarConsentimentoController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
+const notificacoes = criarNotificacoesController(() => db ??= createConnection(), Bun.env.NODE_ENV === "production", Bun.env.APP_ORIGIN);
+const metaWebhook = criarMetaWebhookController(() => db ??= createConnection());
 
 export async function closeConnection(): Promise<void> {
   if (db) await db.close({ timeout: 5 });
@@ -29,6 +35,8 @@ const staticFiles = new Map([
   ["/js/app.js", new URL("../public/js/app.js", import.meta.url)],
   ["/js/navigation.js", new URL("../public/js/navigation.js", import.meta.url)],
   ["/js/agenda.js", new URL("../public/js/agenda.js", import.meta.url)],
+  ["/js/notificacoes.js", new URL("../public/js/notificacoes.js", import.meta.url)],
+  ["/js/consentimento.js", new URL("../public/js/consentimento.js", import.meta.url)],
   ["/js/procedimentos.js", new URL("../public/js/procedimentos.js", import.meta.url)],
   ["/js/atendimentos.js", new URL("../public/js/atendimentos.js", import.meta.url)],
 ]);
@@ -43,6 +51,9 @@ export async function handleRequest(request: Request): Promise<Response> {
 
 async function routeRequest(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
+  if (pathname === "/api/webhooks/whatsapp") return metaWebhook(request);
+  if (pathname === "/api/notificacoes" || pathname.startsWith("/api/notificacoes/")) return notificacoes(request);
+  if (/^\/api\/pacientes\/[^/]+\/consentimento-whatsapp$/.test(pathname)) return consentimento(request);
   if (pathname === "/api/agenda" || pathname.startsWith("/api/agenda/")) return agenda(request);
   if (pathname === "/api/atendimentos" || pathname.startsWith("/api/atendimentos/")) return atendimentos(request);
   if (pathname === "/api/procedimentos" || pathname.startsWith("/api/procedimentos/")) return procedimentos(request);

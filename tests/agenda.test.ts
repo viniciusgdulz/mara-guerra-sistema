@@ -109,7 +109,7 @@ describe("Agenda: validação e transações simuladas", () => {
     expect(values).toEqual([dados.data, "%\\%\\_\\\\'%", 50]);
   });
   test("retornos filtra datas e limita campos internos", async () => {
-    const row = { sugestao_id: id, paciente_id: paciente, procedimento_id: procedimento, data_retorno_sugerida: "2026-10-27", paciente_nome: "Teste", procedimento_nome: "Teste", procedimento_ativo: false };
+    const row = { sugestao_id: id, paciente_id: paciente, procedimento_id: procedimento, data_retorno_sugerida: "2026-10-27", paciente_nome: "Teste", procedimento_nome: "Teste", procedimento_ativo: false, retorno_agendado: false };
     const { db, query } = cliente([[{ ...row, data_atendimento: "segredo" }]]);
     expect(await listarRetornos(db, "2026-10-01", "2026-10-31", 2)).toEqual([row]);
     expect(query.mock.calls[0]!.slice(1)).toEqual(["2026-10-01", "2026-10-31", 50]);

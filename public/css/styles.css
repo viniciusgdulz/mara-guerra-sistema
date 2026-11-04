@@ -82,3 +82,7 @@ select:focus-visible { outline: 3px solid #b686a0; outline-offset: 3px; }
 #agenda-selecao-paciente, #agenda-selecao-procedimento { margin-bottom: 1.5rem; }
 #agenda-selecao-paciente > label, #agenda-selecao-procedimento > label { display: block; margin-top: .75rem; }
 #agenda-lista button { margin-right: .5rem; }
+
+#consentimento-editor { padding: 1rem; border: 1px solid #e8dde2; border-radius: .75rem; background: #fdfafb; }
+#notificacoes-lista td { white-space: pre-wrap; }
+#notificacoes-lista button { margin-right: .5rem; }

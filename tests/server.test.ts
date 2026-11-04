@@ -25,6 +25,8 @@ describe("Servidor HTTP", () => {
     ["/js/atendimentos.js", "javascript"],
     ["/js/navigation.js", "javascript"],
     ["/js/agenda.js", "javascript"],
+    ["/js/consentimento.js", "javascript"],
+    ["/js/notificacoes.js", "javascript"],
   ])("serve o arquivo %s", async (path, type) => {
     const response = await request(path);
     expect(response.status).toBe(200);

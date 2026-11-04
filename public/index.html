@@ -6,6 +6,8 @@
     <title>Mara Guerra Estética Avançada — Sistema de Gestão</title>
     <link rel="stylesheet" href="/css/styles.css" />
     <script src="/js/navigation.js" defer></script>
+    <script src="/js/consentimento.js" defer></script>
+    <script src="/js/notificacoes.js" defer></script>
     <script src="/js/agenda.js" defer></script>
     <script src="/js/procedimentos.js" defer></script>
     <script src="/js/atendimentos.js" defer></script>
@@ -37,6 +39,7 @@
           <button id="nav-agenda" type="button" data-screen="agenda" aria-controls="agenda-area">Agenda</button>
           <button id="nav-procedimentos" type="button" data-screen="procedimentos" aria-controls="procedimentos-area">Procedimentos</button>
           <button id="nav-atendimentos" type="button" data-screen="atendimentos" aria-controls="atendimentos-area" hidden>Atendimentos</button>
+          <button id="nav-notificacoes" type="button" data-screen="notificacoes" aria-controls="notificacoes-area" hidden>Notificações</button>
         </nav>
         <section id="inicio-area" class="screen" aria-labelledby="home-title">
           <h2 id="home-title" tabindex="-1">Bem-vindo(a), <span id="user-name"></span></h2>
@@ -116,6 +119,28 @@
             </section>
           </div>
         </section>
+        <section id="notificacoes-area" class="screen" hidden aria-labelledby="notificacoes-title">
+          <h2 id="notificacoes-title" tabindex="-1">Notificações WhatsApp</h2>
+          <p class="status">Modo de preparação simulada. Nenhuma mensagem será enviada. Nenhuma credencial é necessária.</p>
+          <p id="notificacoes-provedor" role="status" aria-live="polite">Envios externos bloqueados na Etapa 3.</p>
+          <p>Gerar identifica agendamentos nas próximas 48 horas e retornos nos próximos 7 dias, somente com consentimento explícito. Registros inválidos na fila são cancelados na geração ou simulação.</p>
+          <button id="notificacoes-gerar" type="button">Gerar / atualizar fila (sem envio)</button>
+          <button id="notificacoes-reconciliar" type="button" hidden>Reconciliar reservas e eventos (sem reenvio)</button>
+          <form id="notificacoes-filtros">
+            <label for="notificacoes-status">Status</label>
+            <select id="notificacoes-status"><option value="">Todos</option><option value="pendente">Pendente</option><option value="falhou">Falhou</option><option value="cancelada">Cancelada</option><option value="enviada">Enviada (registro existente)</option></select>
+            <button type="submit">Consultar / atualizar</button>
+          </form>
+          <p id="notificacoes-message" role="status" aria-live="polite"></p>
+          <p id="notificacoes-lista-message" role="status" aria-live="polite"></p>
+          <div class="table-scroll"><table>
+            <caption>Fila de preparação de notificações</caption>
+            <thead><tr><th scope="col">Paciente</th><th scope="col">Tipo</th><th scope="col">Previsão</th><th scope="col">Status</th><th scope="col">Prévia / diagnóstico</th><th scope="col">Ações</th></tr></thead>
+            <tbody id="notificacoes-lista"></tbody>
+          </table></div>
+          <div class="pagination"><button id="notificacoes-anterior" type="button" disabled>Anterior</button><span id="notificacoes-pagina"></span><button id="notificacoes-proxima" type="button" disabled>Próxima</button></div>
+          <p>Uma preparação bem-sucedida permanece pendente. Falhas não têm detalhe histórico no schema atual; o diagnóstico mostrado é calculado agora. Não há envio real ou alteração manual para “enviada”.</p>
+        </section>
         <section id="pacientes-area" class="screen" hidden aria-labelledby="pacientes-title">
           <h2 id="pacientes-title" tabindex="-1">Pacientes</h2>
           <button id="novo-paciente" type="button" aria-controls="paciente-editor" aria-expanded="false">Novo paciente</button>
@@ -136,6 +161,19 @@
           </form>
           </div>
           <p id="paciente-message" role="status" aria-live="polite"></p>
+          <div id="consentimento-editor" hidden>
+            <h3 id="consentimento-title" tabindex="-1">Consentimento WhatsApp</h3>
+            <p id="consentimento-estado" role="status" aria-live="polite"></p>
+            <p>Registre somente autorização explícita do paciente para lembretes da clínica. Cadastro e telefone informado não representam autorização.</p>
+            <form id="consentimento-form">
+              <label class="checkbox-label"><input id="consentimento-confirmacao" type="checkbox" required /> Confirmo que o paciente autorizou ou solicitou expressamente a revogação.</label>
+              <button id="consentimento-autorizar" type="submit" disabled>Registrar autorização explícita</button>
+              <button id="consentimento-revogar" type="button" disabled>Revogar autorização e cancelar pendentes</button>
+              <button id="consentimento-voltar" type="button" class="secondary">Voltar à lista de pacientes</button>
+            </form>
+            <p id="consentimento-message" role="status" aria-live="polite"></p>
+            <p>A data da autorização é registrada pelo servidor. O schema atual exige apagar essa data ao revogar e não possui histórico de consentimentos.</p>
+          </div>
           <div id="pacientes-consulta">
           <h3>Pacientes cadastrados</h3>
           <form id="pesquisa-form" role="search">
@@ -147,7 +185,7 @@
           <div class="table-scroll">
             <table>
               <caption>Dados cadastrais dos pacientes</caption>
-              <thead><tr><th scope="col">Nome</th><th scope="col">Telefone</th><th scope="col">E-mail</th><th scope="col">Nascimento</th></tr></thead>
+              <thead><tr><th scope="col">Nome</th><th scope="col">Telefone</th><th scope="col">E-mail</th><th scope="col">Nascimento</th><th scope="col">WhatsApp</th></tr></thead>
               <tbody id="pacientes-lista"></tbody>
             </table>
           </div>

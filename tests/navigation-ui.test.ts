@@ -2,7 +2,7 @@
 import { createContext, runInContext } from "node:vm";
 
 const html = await Bun.file(new URL("../public/index.html", import.meta.url)).text();
-const scripts = await Promise.all(["navigation", "agenda", "procedimentos", "atendimentos", "app"].map(name => Bun.file(new URL(`../public/js/${name}.js`, import.meta.url)).text()));
+const scripts = await Promise.all(["navigation", "consentimento", "notificacoes", "agenda", "procedimentos", "atendimentos", "app"].map(name => Bun.file(new URL(`../public/js/${name}.js`, import.meta.url)).text()));
 type Evento = { preventDefault(): void };
 class Elemento {
   value = ""; textContent = ""; hidden = false; disabled = false; checked = false; focused = false;
@@ -22,7 +22,7 @@ class Elemento {
   querySelectorAll(tag: string): Elemento[] { return this.children.flatMap(c => [...(c.tag === tag ? [c] : []), ...c.querySelectorAll(tag)]); }
 }
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
-async function interfaceSimulada(perfil = "administrador") {
+async function interfaceSimulada(perfil = "administrador", provedor = "simulado", persistencia = false) {
   const elements = new Map<string, Elemento>();
   for (const match of html.matchAll(/<(\w+)([^>]*\bid="([^"]+)"[^>]*)>/g)) {
     const element = new Elemento(match[1]);
@@ -44,6 +44,12 @@ async function interfaceSimulada(perfil = "administrador") {
   const fetch = mock(async (path: string, init?: RequestInit) => {
     if (init?.method && init.method !== "GET") {
       if (fail) return Response.json({ error: "Dados inválidos para teste." }, { status: 400 });
+      if (path.endsWith("/consentimento-whatsapp")) {
+        const value = JSON.parse(String(init.body)).consentimento_whatsapp;
+        return Response.json({ consentimento: { id: paciente.id, consentimento_whatsapp: value, consentimento_whatsapp_em: value ? "2026-10-27T12:00:00Z" : null } });
+      }
+      if (path.startsWith("/api/notificacoes")) return Response.json({ geradas: 1, atualizadas: 0, canceladas: 0, expiradas: 1, aplicados: 1, reenviadas: 0,
+        mensagem: provedor === "meta" && path.endsWith("/processar") ? "Envio real bloqueado pela Etapa 2. Nenhuma chamada à Meta foi realizada." : "Preparação simulada concluída. Nenhuma mensagem foi enviada." });
       if (path === "/api/pacientes") return Response.json({ paciente }, { status: 201 });
       if (path.startsWith("/api/agenda")) return Response.json({ agendamento: { id: "agenda-teste", data_hora: "2024-01-02T13:00:00Z" } });
       if (path.startsWith("/api/procedimentos")) return Response.json({ procedimento });
@@ -52,6 +58,8 @@ async function interfaceSimulada(perfil = "administrador") {
     }
     if (path === "/api/health") return Response.json({ status: "ok" });
     if (path === "/api/auth/me") return Response.json({ usuario: { id: "usuario", nome: "Equipe Teste", perfil } });
+    if (path.endsWith("/consentimento-whatsapp")) return Response.json({ consentimento: { id: paciente.id, consentimento_whatsapp: false, consentimento_whatsapp_em: null } });
+    if (path.startsWith("/api/notificacoes")) return Response.json({ processamento: { provedor, persistencia_habilitada: persistencia, chamadas_externas_bloqueadas: true }, notificacoes: [{ id: "notificacao-teste", paciente_nome: "Paciente Teste", tipo: "lembrete_agendamento", status: "pendente", previsao_envio: "2026-10-27T12:00:00Z", pode_simular: true, mensagem: "Olá, Teste. Você tem um horário na Mara Guerra.", diagnostico: null }], temMais: false });
     if (path.startsWith("/api/pacientes")) return Response.json({ pacientes: [paciente], temMais: false });
     if (path.startsWith("/api/agenda/procedimentos")) return Response.json({ procedimentos: [procedimento], temMais: false });
     if (path.startsWith("/api/agenda/retornos")) return Response.json({ retornos: [{ sugestao_id: "sugestao-teste", paciente_id: paciente.id, procedimento_id: procedimento.id, paciente_nome: paciente.nome, procedimento_nome: procedimento.nome, procedimento_ativo: true, data_retorno_sugerida: "2024-01-02" }], temMais: false });
@@ -67,7 +75,7 @@ async function interfaceSimulada(perfil = "administrador") {
   return { get, fetch, run: (code: string) => runInContext(code, context), fail: () => { fail = true; } };
 }
 function telaVisivel(ui: Awaited<ReturnType<typeof interfaceSimulada>>, selected: string) {
-  for (const name of ["inicio", "agenda", "pacientes", "procedimentos", "atendimentos"]) expect(ui.get(`${name}-area`).hidden).toBe(name !== selected);
+  for (const name of ["inicio", "agenda", "pacientes", "procedimentos", "atendimentos", "notificacoes"]) expect(ui.get(`${name}-area`).hidden).toBe(name !== selected);
   expect(ui.get(`nav-${selected}`).attributes.get("aria-current")).toBe("page");
 }
 
@@ -194,4 +202,76 @@ test("retorno atrasado é descartado ao mudar de administrador para funcionário
   await settle();
   expect(ui.get("agenda-retornos-area").hidden).toBe(true);
   expect(ui.get("agenda-retornos-lista").children).toHaveLength(0);
+});
+
+test("consentimento exige confirmação explícita e permite revogação sem expor histórico", async () => {
+  const ui = await interfaceSimulada("funcionario"); await ui.get("nav-pacientes").fire();
+  await ui.get("pacientes-lista").children[0]!.children[4]!.children[0]!.fire(); await settle();
+  expect(ui.get("consentimento-editor").hidden).toBe(false);
+  expect(ui.get("consentimento-confirmacao").checked).toBe(false);
+  const calls = ui.fetch.mock.calls.length;
+  await ui.get("consentimento-form").fire("submit"); await settle();
+  expect(ui.fetch.mock.calls).toHaveLength(calls); expect(ui.get("consentimento-message").textContent).toContain("explícita");
+  ui.get("consentimento-confirmacao").checked = true;
+  await ui.get("consentimento-form").fire("submit"); await settle();
+  expect(ui.get("consentimento-estado").textContent).toContain("Autorizado em");
+  expect(ui.get("consentimento-confirmacao").checked).toBe(false);
+  ui.get("consentimento-confirmacao").checked = true;
+  await ui.get("consentimento-revogar").fire(); await settle();
+  expect(ui.get("consentimento-message").textContent).toContain("revogada");
+  expect(ui.get("consentimento-estado").textContent).toContain("Sem autorização");
+  await ui.get("consentimento-voltar").fire(); expect(ui.get("consentimento-editor").hidden).toBe(true);
+  expect(ui.get("pacientes-consulta").hidden).toBe(false);
+});
+test("funcionário não acessa notificações por navegação ou chamada direta", async () => {
+  const ui = await interfaceSimulada("funcionario");
+  expect(ui.get("nav-notificacoes").hidden).toBe(true);
+  ui.run('showScreen("notificacoes"); openNotificacoes();'); telaVisivel(ui, "inicio");
+  expect(ui.fetch.mock.calls.some(([path]) => path.startsWith("/api/notificacoes"))).toBe(false);
+});
+test("admin consulta fila e executa somente preparação simulada, sem endpoint de envio", async () => {
+  const ui = await interfaceSimulada(); await ui.get("nav-notificacoes").fire(); await settle(); telaVisivel(ui, "notificacoes");
+  expect(ui.get("notificacoes-lista").children).toHaveLength(1);
+  await ui.get("notificacoes-gerar").fire(); await settle();
+  expect(ui.get("notificacoes-message").textContent).toContain("Nenhum envio");
+  await ui.get("notificacoes-lista").children[0]!.children[5]!.children[0]!.fire(); await settle();
+  expect(ui.get("notificacoes-message").textContent).toContain("simulada");
+  expect(ui.fetch.mock.calls.some(([path]) => /\/messages|graph\.facebook/.test(path))).toBe(false);
+  expect(ui.get("notificacoes-lista").children[0]!.children[3]!.textContent).toBe("pendente");
+});
+test("resposta tardia de notificações é descartada ao sair", async () => {
+  const ui = await interfaceSimulada();
+  ui.run('fetch = () => new Promise(resolve => { globalThis.resolverFila = resolve; }); loadNotificacoes(1);');
+  ui.run('showUser(null);');
+  ui.run('resolverFila({ status: 200, ok: true, json: async () => ({ notificacoes: [{ paciente_nome: "Teste", previsao_envio: "2026-10-27T12:00:00Z" }], temMais: false }) });');
+  await settle(); expect(ui.get("notificacoes-lista").children).toHaveLength(0); expect(ui.get("notificacoes-area").hidden).toBe(true);
+});
+test("retornos com possível agendamento mostram aviso sem botão para duplicar", async () => {
+  const ui = await interfaceSimulada();
+  ui.run('fetch = async () => ({ status: 200, ok: true, json: async () => ({ retornos: [{ sugestao_id: "teste", paciente_nome: "Paciente Teste", procedimento_nome: "Teste", procedimento_ativo: true, retorno_agendado: true, data_retorno_sugerida: "2026-10-27" }], temMais: false }) }); loadAgendaReturns(1);');
+  await settle(); const actions = ui.get("agenda-retornos-lista").children[0]!.children[3]!;
+  expect(actions.children).toHaveLength(0); expect(actions.textContent).toContain("Possível retorno já agendado");
+});
+
+test("interface mostra seleção Meta mas processamento permanece bloqueado e pendente", async () => {
+  const ui = await interfaceSimulada("administrador", "meta");
+  await ui.get("nav-notificacoes").fire(); await settle();
+  expect(ui.get("notificacoes-provedor").textContent).toContain("Provedor selecionado: meta");
+  const actions = ui.get("notificacoes-lista").children[0]!.children[5]!;
+  expect(actions.children[1]!.textContent).toBe("Processar com provedor selecionado");
+  await actions.children[1]!.fire(); await settle();
+  expect(ui.get("notificacoes-message").textContent).toContain("bloqueado pela Etapa 2");
+  expect(ui.get("notificacoes-lista").children[0]!.children[3]!.textContent).toBe("pendente");
+  expect(ui.fetch.mock.calls.some(([path]) => /graph\.facebook|\/messages/.test(path))).toBe(false);
+  expect(ui.fetch.mock.calls.some(([path]) => path.endsWith("/processar"))).toBe(true);
+});
+
+test("reconciliação administrativa informa incerteza sem reenvio", async () => {
+  const ui = await interfaceSimulada("administrador", "meta", true);
+  await ui.get("nav-notificacoes").fire(); await settle();
+  expect(ui.get("notificacoes-reconciliar").hidden).toBe(false);
+  await ui.get("notificacoes-reconciliar").fire(); await settle();
+  expect(ui.get("notificacoes-message").textContent).toContain("Nenhum reenvio");
+  expect(ui.fetch.mock.calls.some(([path]) => path.endsWith("/reconciliar"))).toBe(true);
+  expect(ui.fetch.mock.calls.some(([path]) => /graph\.facebook|\/messages/.test(path))).toBe(false);
 });

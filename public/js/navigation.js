@@ -1,5 +1,6 @@
 ﻿const screens = {
   inicio: { area: "inicio-area", title: "home-title" },
+  notificacoes: { area: "notificacoes-area", title: "notificacoes-title" },
   agenda: { area: "agenda-area", title: "agenda-title", editor: "agenda-editor", list: "agenda-consulta", button: "novo-agendamento", input: "agenda-paciente" },
   pacientes: { area: "pacientes-area", title: "pacientes-title", editor: "paciente-editor", list: "pacientes-consulta", button: "novo-paciente", input: "paciente-nome" },
   procedimentos: { area: "procedimentos-area", title: "procedimentos-title", editor: "procedimento-editor", list: "procedimentos-consulta", button: "novo-procedimento", input: "procedimento-nome" },
@@ -11,6 +12,7 @@ const navElement = id => document.getElementById(id);
 
 function showEditor(screen, open, focus = true) {
   const config = screens[screen];
+  if (screen === "pacientes") closeConsentimento();
   if (!config?.editor) return;
   if (open && (!navigationUser || (!["pacientes", "agenda"].includes(screen) && navigationUser.perfil !== "administrador"))) return;
   navElement(config.editor).hidden = !open;
@@ -21,7 +23,7 @@ function showEditor(screen, open, focus = true) {
   if (focus && activeScreen === screen) navElement(open ? config.input : config.title).focus();
 }
 function showScreen(screen, focus = true) {
-  if (!navigationUser || !screens[screen] || (screen === "atendimentos" && navigationUser.perfil !== "administrador")) return;
+  if (!navigationUser || !screens[screen] || (["atendimentos", "notificacoes"].includes(screen) && navigationUser.perfil !== "administrador")) return;
   activeScreen = screen;
   for (const [name, config] of Object.entries(screens)) {
     navElement(config.area).hidden = name !== screen;
@@ -32,12 +34,14 @@ function showScreen(screen, focus = true) {
   }
   if (focus) navElement(screens[screen].title).focus();
   if (screen === "agenda") openAgenda();
+  if (screen === "notificacoes") openNotificacoes();
 }
 function setupNavigation(usuario) {
   const changed = navigationUser?.id !== usuario?.id || navigationUser?.perfil !== usuario?.perfil;
   navigationUser = usuario;
   const admin = usuario?.perfil === "administrador";
   navElement("nav-atendimentos").hidden = !admin;
+  navElement("nav-notificacoes").hidden = !admin;
   navElement("atalho-atendimento").hidden = !admin;
   navElement("novo-procedimento").hidden = !admin || !navElement("procedimento-editor").hidden;
   if (!usuario) {
